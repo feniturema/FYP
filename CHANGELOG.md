@@ -5,6 +5,65 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.3.0] — 2026-06-01 — P3: cart checkout + image upload
+
+Authored by Claude Code (Sonnet 4.6). Builds directly on top of v0.2.0 (Codex).
+
+### Added — Backend
+- `UploadController` (`POST /api/upload`): authenticated multipart image upload, validates
+  type (JPEG/PNG/WebP/GIF) and size (≤ 5 MB), stores to `uploads/` with UUID filename,
+  returns `{"url": "/uploads/<uuid>.ext"}`. Rejects unauthenticated requests (403) and
+  non-image types (400).
+- `WebMvcConfig`: registers `/uploads/**` as a static resource handler pointing to the
+  local `uploads/` directory (`file:<abs-path>/`). Uploaded images are served directly.
+- `SecurityConfig`: added `GET /uploads/**` to public permit list so images load without auth.
+- `application.yml`: added `app.upload.dir` (env: `UPLOAD_DIR`), moved `spring.servlet.multipart`
+  limits (5 MB file / 6 MB request) to the correct `spring:` prefix.
+
+### Added — Frontend
+- `components/common/ImageUpload.tsx`: reusable image upload widget — file picker + preview +
+  `POST /api/upload` call + URL fallback input. Used in SellItem and Admin product form.
+- `pages/Cart.tsx` (`/cart`, protected): full shopping-cart checkout page — lists lines with
+  remove, shows total, payment method selector (FAKE_WALLET / MOCK_FPX), places orders
+  sequentially with per-line status, shows results and links to Orders.
+- `services/api.ts`: added `uploadApi.image(file)`.
+- `store/useCartStore.ts`: was already defined; now actively wired up in Marketplace and Navbar.
+- `Navbar.tsx`: cart icon (🛒) with live badge showing line count, links to `/cart`. Only shown
+  when authenticated.
+- `features/marketplace/Marketplace.tsx`: added "Add to Cart" (🛒) button alongside direct Buy on
+  each product/item card; triggers `cartAdd` + inline notice.
+- `features/marketplace/ProductCard.tsx`: added optional `onAddToCart` prop; renders a small 🛒
+  button next to the Buy button when provided.
+- `features/marketplace/SellItem.tsx`: replaced plain `<Input label="Image URL">` with
+  `<ImageUpload>` component.
+- `features/admin/AdminDashboard.tsx`: replaced plain image URL input on the product form with
+  `<ImageUpload>` component.
+- `App.tsx`: added `/cart` route inside `<ProtectedRoute>`.
+
+### Added — Infra
+- `docker-compose.yml`: added `uploads_data` named volume mounted at `/app/uploads` in the
+  backend container; added `UPLOAD_DIR=/app/uploads` env var.
+- `frontend/nginx.conf`: added `/uploads/` reverse-proxy block so images load from the same
+  public origin.
+- `.gitignore`: added `uploads/` to exclude locally uploaded files.
+
+### Fixed
+- `WebMvcConfig` resource location was missing `file:` prefix and trailing `/` → `GET /uploads/**`
+  returned 500. Fixed to `"file:" + absolutePath + "/"`.
+- `spring.servlet.multipart` limits were nested under `app:` key in `application.yml` and silently
+  ignored by Spring Boot. Moved to correct `spring:` section.
+
+### Verified — 2026-06-01
+- Backend package + frontend build: both clean (BUILD OK / 120 modules).
+- **Upload tests (all pass):**
+  - `POST /api/upload` with valid PNG → 200, `{"url":"/uploads/<uuid>.png"}`.
+  - `GET /uploads/<uuid>.png` → 200 (file served correctly).
+  - `POST /api/upload` with text file → 400 (type rejected).
+  - `POST /api/upload` without JWT → 403 (auth enforced).
+- `scripts/e2e_test.py --users 60 --stock 20` — **8/8 passing** (no regression).
+
+---
+
 ## [v0.2.0] — 2026-05-31 — P1/P2 feature completion
 
 Authored by Codex (GPT-5). This section covers the post-handoff implementation work requested
@@ -25,6 +84,18 @@ after Claude Code's v0.1.0 foundation.
 ### Verified
 - `JAVA_HOME=$(/usr/libexec/java_home -v 21) mvn test` — 5 tests passing.
 - `npm run build` — frontend TypeScript and Vite production build passing.
+
+### Verified by Claude Code (Sonnet 4.6) re-check — 2026-06-01
+Claude re-verified the full v0.2.0 Codex delivery before accepting the commit:
+- Backend 5/5 JUnit tests green; frontend production build clean (117 modules).
+- `scripts/e2e_test.py --users 60 --stock 20` — **8/8 passing** against fresh MySQL + Redis (no
+  regression from v0.1.0; concurrency guarantee still holds: 20 ACCEPTED / 40 SOLD_OUT / 0 oversell).
+- New P1.1 endpoints smoke-tested: admin list/update/delete seckill events all return expected HTTP codes.
+- P1.3 resend-OTP: returns 200 for an unverified account.
+- P2.1 reviews guard: POST /api/reviews returns 400 before a paid order, 200 after.
+- Git: `git remote -v` confirms `origin → https://github.com/feniturema/FYP.git`, `HEAD` in sync with `origin/main`.
+
+---
 
 ## [v0.1.0] — 2026-05-31 — Initial scaffold + verified SecKill core
 

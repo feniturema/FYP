@@ -14,3 +14,6 @@ frontend/vite.config.d.ts
 .idea/
 .vscode/
 *.iml
+
+# uploaded images (local dev)
+uploads/

@@ -36,6 +36,11 @@ spring:
           starttls:
             enable: true
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
 server:
   port: ${SERVER_PORT:8080}
 
@@ -56,6 +61,8 @@ app:
     enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:admin@ukm.edu.my}
     admin-password: ${SEED_ADMIN_PASSWORD:Admin@123}
+  upload:
+    dir: ${UPLOAD_DIR:uploads}   # relative to working dir; Docker maps this to a volume
 
 management:
   endpoints:

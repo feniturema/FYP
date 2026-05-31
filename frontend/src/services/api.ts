@@ -61,6 +61,17 @@ export const reviewApi = {
     api.post<Review>('/reviews', data).then((r) => r.data),
 };
 
+// ---- Upload ----
+export const uploadApi = {
+  image: (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api.post<{ url: string }>('/upload', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
+};
+
 // ---- Chat ----
 export const chatApi = {
   send: (message: string) =>

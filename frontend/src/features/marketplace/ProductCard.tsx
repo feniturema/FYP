@@ -11,10 +11,11 @@ interface Props {
   buyLabel?: string;
   disabled?: boolean;
   href?: string;
+  onAddToCart?: () => void;
 }
 
 export default function ProductCard({
-  title, price, imageUrl, badge, subtitle, onBuy, buyLabel = 'Buy', disabled, href,
+  title, price, imageUrl, badge, subtitle, onBuy, buyLabel = 'Buy', disabled, href, onAddToCart,
 }: Props) {
   const body = (
     <>
@@ -35,15 +36,26 @@ export default function ProductCard({
         {subtitle && <p className="truncate text-xs text-gray-500">{subtitle}</p>}
         <div className="mt-2 flex items-center justify-between">
           <span className="font-bold text-ukm-700">{rm(price)}</span>
-          {onBuy && (
-            <button
-              onClick={(e) => { e.preventDefault(); onBuy(); }}
-              disabled={disabled}
-              className="rounded-lg bg-ukm-700 px-3 py-1 text-xs font-semibold text-white hover:bg-ukm-800 disabled:opacity-50"
-            >
-              {buyLabel}
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            {onBuy && (
+              <button
+                onClick={(e) => { e.preventDefault(); onBuy(); }}
+                disabled={disabled}
+                className="rounded-lg bg-ukm-700 px-3 py-1 text-xs font-semibold text-white hover:bg-ukm-800 disabled:opacity-50"
+              >
+                {buyLabel}
+              </button>
+            )}
+            {onAddToCart && !disabled && (
+              <button
+                onClick={(e) => { e.preventDefault(); onAddToCart(); }}
+                title="Add to cart"
+                className="rounded-lg border border-ukm-300 px-2 py-1 text-xs text-ukm-700 hover:bg-ukm-50"
+              >
+                🛒
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </>

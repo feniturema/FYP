@@ -5,7 +5,9 @@
 | Scope | Authoring agent | Date | Trace |
 |---|---|---|---|
 | Foundation scaffold, core auth/SecKill/payment/admin-create/marketplace/chatbot stub, Docker, initial README/HANDOFF/CHANGELOG | Claude Code (Opus 4.8) | 2026-05-31 | `CHANGELOG.md` v0.1.0 |
-| P1/P2 handoff completion: admin SecKill list/update/delete, order detail/pay-later, OTP resend, reviews, product/item details, tests/docs/git init | Codex (GPT-5) | 2026-05-31 | `CHANGELOG.md` v0.2.0; local git history |
+| P1/P2 handoff completion: admin SecKill list/update/delete, order detail/pay-later, OTP resend, reviews, product/item details, tests/docs/git init | Codex (GPT-5) | 2026-05-31 | `CHANGELOG.md` v0.2.0; git commit `29e0506` |
+| v0.2.0 independent re-verification by Claude Code | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.2.0 "Verified by Claude Code" section |
+| P3: cart checkout + image upload | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.3.0 |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -31,6 +33,8 @@ user reopens a completed item.
 | Order detail + pay-later frontend | ✅ Done by Codex |
 | Reviews API/UI | ✅ Done by Codex |
 | OTP resend endpoint/UI + SMTP docs | ✅ Done by Codex |
+| Cart checkout (`/cart`, Zustand `useCartStore`, payment selector) | ✅ Done by Claude Code (v0.3.0) |
+| Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI chatbot | ⏸️ ON HOLD (stubbed) |
 
@@ -184,14 +188,13 @@ Write at least a happy-path test where noted.
 - Currently buying happens straight from cards. Add detail routes (`/product/:id`, `/item/:id`)
   with full description, image, reviews (P2.1), and buy button. Update `ProductCard` to link.
 
-### P3.1 — Cart checkout
-- `useCartStore` exists but is unused. Add a cart drawer/page that lists lines and checks out by
-  creating an order per line (loop `orderApi.create`) or add a future batch endpoint. Keep it
-  simple; C2C items are single-quantity.
+### P3.1 — Cart checkout — ✅ Done by Claude Code (v0.3.0)
+- `pages/Cart.tsx` (`/cart`, protected); Navbar cart icon with badge; `onAddToCart` prop on
+  `ProductCard`; sequential order creation per line; payment method selector; results page.
 
-### P3.2 — Image upload (optional)
-- Today image is a URL field. Optionally add an upload endpoint storing to local disk
-  (`/uploads`, served statically) or a cloud bucket; return the URL. Low priority.
+### P3.2 — Image upload — ✅ Done by Claude Code (v0.3.0)
+- Backend `UploadController` + `WebMvcConfig` static serving; `ImageUpload` React component;
+  wired into `SellItem` and `AdminDashboard`. Upload dir persisted via Docker volume.
 
 ### P4 — Tests
 - **Backend (JUnit):** ✅ Done by Codex for `UkmEmailValidatorTest` (valid/invalid domains),
@@ -225,28 +228,27 @@ Write at least a happy-path test where noted.
 
 ---
 
-## 9. Definition of done for the handoff scope (P1–P2)
-- ✅ All P1 + P2 endpoints implemented per spec, following §4 conventions. Authored by Codex.
-- ✅ Frontend pages wired and navigable; protected/admin routes enforced. Authored by Codex.
-- ✅ README updated for SMTP OTP and reviews. Authored by Codex.
-- ✅ AI left untouched (still works as placeholder). Original stub authored by Claude Code.
-- Not rerun in this Codex pass: `python3 scripts/e2e_test.py` against live MySQL/Redis. Backend unit/JPA tests and frontend build are green; original 8/8 e2e verification remains recorded under Claude Code v0.1.0.
+## 9. Definition of done — cumulative (P1–P3)
+- ✅ P1/P2: admin SecKill CRUD, order detail/pay, resend-OTP, reviews, detail pages, JUnit tests. (Codex v0.2.0)
+- ✅ P2 independently re-verified by Claude Code (Sonnet 4.6) on 2026-06-01: 8/8 e2e, all new endpoints smoke-tested.
+- ✅ P3.1 cart checkout: `pages/Cart.tsx`, Navbar badge, `ProductCard.onAddToCart`, sequential checkout, payment selector. (Claude Code v0.3.0)
+- ✅ P3.2 image upload: `UploadController`, `WebMvcConfig`, `ImageUpload` component, wired in SellItem + Admin, Docker volume. (Claude Code v0.3.0)
+- ✅ All builds green (backend + frontend) and `scripts/e2e_test.py` 8/8 after P3.
+- ✅ AI chatbot still ON HOLD (untouched stub).
+- ⬜ Remaining: real server deployment, HTTPS, real SMTP verification end-to-end, AI LLM wiring.
 
 ---
 
 ## 10. Version control
 
-Codex initialized the local git repository on 2026-05-31 and created the first local commit:
-`feat: complete p1 p2 handoff features`. No remote is configured yet.
+Codex initialized the local git repository and pushed to GitHub on 2026-05-31.
+Remote: `origin → https://github.com/feniturema/FYP.git`, branch `main`.
 
 ```bash
 cd /Users/fenituremas/Documents/FYP
-git status
-git log --oneline -1
-# create a GitHub repo when ready, then:
-# git remote add origin <repo-url>
-# git branch -M main
-# git push -u origin main
+git status         # should be clean after each commit
+git log --oneline  # review history
+git push           # push committed work to origin/main
 ```
 - `.gitignore` is already set at root / `backend/` / `frontend/` (excludes `.env`, `target/`,
   `node_modules/`, `dist/`). **Never commit `.env`** — only `.env.example`.

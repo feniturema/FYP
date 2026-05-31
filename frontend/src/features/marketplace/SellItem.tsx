@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { itemApi } from '../../services/api';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import ImageUpload from '../../components/common/ImageUpload';
 
 export default function SellItem() {
   const [form, setForm] = useState({
@@ -47,8 +48,11 @@ export default function SellItem() {
             <option value="USED">Used</option>
           </select>
         </label>
-        <Input label="Image URL" value={form.imageUrl}
-          onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+        <ImageUpload
+          label="Item image"
+          value={form.imageUrl}
+          onChange={(url) => setForm({ ...form, imageUrl: url })}
+        />
         {error && <p className="text-sm text-red-600">{error}</p>}
         <Button type="submit" full>Publish listing</Button>
       </form>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { itemApi, productApi, orderApi } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useCartStore } from '../../store/useCartStore';
 import type { Item, Product } from '../../types';
 import ProductCard from './ProductCard';
 import Spinner from '../../components/common/Spinner';
@@ -15,6 +16,7 @@ export default function Marketplace() {
   const [notice, setNotice] = useState('');
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const navigate = useNavigate();
+  const cartAdd = useCartStore((s) => s.add);
 
   const load = async () => {
     setLoading(true);
@@ -66,7 +68,13 @@ export default function Marketplace() {
                   disabled={p.totalStock <= 0}
                   buyLabel={p.totalStock <= 0 ? 'Sold out' : 'Buy'}
                   href={`/product/${p.id}`}
-                  onBuy={() => buy('B2C_PRODUCT', p.id)} />
+                  onBuy={() => buy('B2C_PRODUCT', p.id)}
+                  onAddToCart={p.totalStock > 0 ? () => {
+                    if (!isAuthed) { navigate('/login'); return; }
+                    cartAdd({ refId: p.id, sourceType: 'B2C_PRODUCT', title: p.name, price: p.price });
+                    setNotice(`Added "${p.name}" to cart.`);
+                  } : undefined}
+                />
               ))}
               {products.length === 0 && <p className="text-sm text-gray-500">No products yet.</p>}
             </div>
@@ -79,7 +87,13 @@ export default function Marketplace() {
                 <ProductCard key={`i-${i.id}`} title={i.title} price={i.price} imageUrl={i.imageUrl}
                   badge="Second-hand" subtitle={i.condition}
                   href={`/item/${i.id}`}
-                  onBuy={() => buy('C2C_ITEM', i.id)} />
+                  onBuy={() => buy('C2C_ITEM', i.id)}
+                  onAddToCart={() => {
+                    if (!isAuthed) { navigate('/login'); return; }
+                    cartAdd({ refId: i.id, sourceType: 'C2C_ITEM', title: i.title, price: i.price });
+                    setNotice(`Added "${i.title}" to cart.`);
+                  }}
+                />
               ))}
               {items.length === 0 && <p className="text-sm text-gray-500">No listings yet.</p>}
             </div>

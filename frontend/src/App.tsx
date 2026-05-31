@@ -11,6 +11,7 @@ import Register from './features/auth/Register';
 import OtpVerify from './features/auth/OtpVerify';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
+import Cart from './pages/Cart';
 import AdminDashboard from './features/admin/AdminDashboard';
 
 export default function App() {
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/sell" element={<SellItem />} />
             <Route path="/orders" element={<Orders />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
+            <Route path="/cart" element={<Cart />} />
           </Route>
 
           <Route element={<ProtectedRoute adminOnly />}>

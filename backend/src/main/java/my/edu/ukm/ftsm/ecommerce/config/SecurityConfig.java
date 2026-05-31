@@ -37,12 +37,14 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // public
                 .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/items/**", "/api/products/**", "/api/seckill/events/**",
-                        "/api/reviews/**").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/health").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/items/**", "/api/products/**",
+                        "/api/seckill/events/**", "/api/reviews/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()  // served images
+                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
+                        "/actuator/health").permitAll()
                 // admin
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // everything else requires auth
+                // everything else requires auth (incl. POST /api/upload)
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

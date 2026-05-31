@@ -3,6 +3,7 @@ import { adminApi, productApi } from '../../services/api';
 import type { Product, SeckillEvent } from '../../types';
 import Button from '../../components/common/Button';
 import Input from '../../components/common/Input';
+import ImageUpload from '../../components/common/ImageUpload';
 import { rm } from '../../utils/format';
 
 export default function AdminDashboard() {
@@ -110,7 +111,11 @@ export default function AdminDashboard() {
           <Input label="Total stock" type="number" value={pForm.totalStock}
             onChange={(e) => setPForm({ ...pForm, totalStock: e.target.value })} required />
           <Input label="Category" value={pForm.category} onChange={(e) => setPForm({ ...pForm, category: e.target.value })} />
-          <Input label="Image URL" value={pForm.imageUrl} onChange={(e) => setPForm({ ...pForm, imageUrl: e.target.value })} />
+          <ImageUpload
+            label="Product image"
+            value={pForm.imageUrl}
+            onChange={(url) => setPForm({ ...pForm, imageUrl: url })}
+          />
           <Button type="submit" full>Create product</Button>
         </form>
 
