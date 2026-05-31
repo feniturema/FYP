@@ -1,0 +1,16 @@
+.env
+.DS_Store
+*.log
+
+# build outputs
+backend/target/
+frontend/node_modules/
+frontend/dist/
+frontend/*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
+
+# IDE
+.idea/
+.vscode/
+*.iml
