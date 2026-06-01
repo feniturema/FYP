@@ -57,7 +57,7 @@ app:
     # OpenAI-compatible endpoint. Default: DeepSeek. Override via env vars for other providers.
     base-url: ${LLM_BASE_URL:https://api.deepseek.com/v1}
     api-key: ${LLM_API_KEY:}
-    model: ${LLM_MODEL:deepseek-v4-pro}
+    model: ${LLM_MODEL:deepseek-v4-flash}
   seed:
     enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:admin@ukm.edu.my}

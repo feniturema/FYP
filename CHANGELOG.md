@@ -5,6 +5,19 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.4.2] — 2026-06-01 — Default model → deepseek-v4-flash (faster)
+
+- Benchmarked both DeepSeek v4 models (3 runs each, same product-context prompt):
+  - `deepseek-v4-pro`: avg **~12.6s** (11.3–14.7s)
+  - `deepseek-v4-flash`: avg **~4.9s** direct API / **~3s** through the backend
+- Default `LLM_MODEL` changed `deepseek-v4-pro` → `deepseek-v4-flash`. ~3x faster with
+  comparable answer quality for the shopping-assistant use case. Updated `.env`,
+  `.env.example`, `application.yml`. (Switch back to `-pro` anytime via `LLM_MODEL`,
+  no rebuild needed.)
+- Verified through backend: `POST /api/chat` → 200 in ~3s, product-aware reply.
+
+---
+
 ## [v0.4.1] — 2026-06-01 — Switch to deepseek-v4-pro (reasoning model)
 
 - Default `LLM_MODEL` changed `deepseek-chat` → `deepseek-v4-pro` (user's provisioned model).
