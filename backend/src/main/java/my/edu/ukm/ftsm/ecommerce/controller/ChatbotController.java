@@ -4,11 +4,12 @@ import jakarta.validation.Valid;
 import my.edu.ukm.ftsm.ecommerce.dto.ChatDtos.*;
 import my.edu.ukm.ftsm.ecommerce.service.ChatService;
 import org.springframework.web.bind.annotation.*;
-import reactor.core.publisher.Mono;
 
 /**
- * Fully reactive endpoint — returns a Mono so the Gemini round-trip does not
- * block Tomcat worker threads handling marketplace/transaction traffic.
+ * Chat endpoint. ChatService uses WebClient internally for non-blocking LLM I/O;
+ * we block() here so the Servlet security context (JwtAuthFilter) is fully respected.
+ * Spring Security 6 reactive method-level security is incompatible with the servlet
+ * SecurityContextHolder when a controller returns Mono<> without a reactive security context.
  */
 @RestController
 @RequestMapping("/api/chat")
@@ -21,7 +22,7 @@ public class ChatbotController {
     }
 
     @PostMapping
-    public Mono<ChatResponse> chat(@Valid @RequestBody ChatRequest req) {
-        return chatService.chat(req.message());
+    public ChatResponse chat(@Valid @RequestBody ChatRequest req) {
+        return chatService.chat(req.message()).block();
     }
 }

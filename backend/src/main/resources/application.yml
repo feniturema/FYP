@@ -53,10 +53,11 @@ app:
   mail:
     enabled: ${MAIL_ENABLED:false}         # when false, OTP is logged instead of emailed
     from: ${MAIL_FROM:no-reply@ftsm.ukm.edu.my}
-  gemini:
-    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
-    api-key: ${GEMINI_API_KEY:}
-    model: ${GEMINI_MODEL:gemini-1.5-flash}
+  llm:
+    # OpenAI-compatible endpoint. Default: DeepSeek. Override via env vars for other providers.
+    base-url: ${LLM_BASE_URL:https://api.deepseek.com/v1}
+    api-key: ${LLM_API_KEY:}
+    model: ${LLM_MODEL:deepseek-chat}
   seed:
     enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:admin@ukm.edu.my}

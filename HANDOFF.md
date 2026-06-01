@@ -8,14 +8,11 @@
 | P1/P2 handoff completion: admin SecKill list/update/delete, order detail/pay-later, OTP resend, reviews, product/item details, tests/docs/git init | Codex (GPT-5) | 2026-05-31 | `CHANGELOG.md` v0.2.0; git commit `29e0506` |
 | v0.2.0 independent re-verification by Claude Code | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.2.0 "Verified by Claude Code" section |
 | P3: cart checkout + image upload | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.3.0 |
+| AI chatbot activated (DeepSeek OpenAI-compatible) | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.4.0 |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
-has completed the P1/P2 handoff scope listed in §6. Remaining future work is P3+ unless the
-user reopens a completed item.
-
-> **AI / Gemini chatbot is ON HOLD.** Do not work on it. It is stubbed and works without an
-> API key (returns a placeholder). See §7. The user will supply a cheap LLM API later.
+has completed the P1/P2 handoff scope listed in §6. P3 and AI chatbot are also complete.
 
 ---
 
@@ -36,7 +33,7 @@ user reopens a completed item.
 | Cart checkout (`/cart`, Zustand `useCartStore`, payment selector) | ✅ Done by Claude Code (v0.3.0) |
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
-| AI chatbot | ⏸️ ON HOLD (stubbed) |
+| AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0) |
 
 ### Verified by `scripts/e2e_test.py` (8/8 passing)
 Admin login · non-UKM rejected (403) · 60 OTP registrations · product+event creation ·
@@ -206,13 +203,20 @@ Write at least a happy-path test where noted.
 
 ## 7. AI chatbot — ON HOLD (context only, do not implement)
 
-- `ChatService` calls Gemini via `WebClient`. With no `GEMINI_API_KEY` it returns a friendly
-  placeholder, so the UI works. `ChatbotController` returns `Mono<ChatResponse>` (non-blocking).
-- To enable later: set `GEMINI_API_KEY` (+ optional `GEMINI_MODEL`, `GEMINI_BASE_URL`). If a
-  different provider/LLM is chosen, only `ChatService` needs changing (swap the request/response
-  mapping and base URL); the controller and frontend `ChatWidget` stay the same.
-- On macOS you may see a harmless netty DNS warning for outbound calls; add
-  `io.netty:netty-resolver-dns-native-macos` (osx-aarch_64 classifier) if it bothers you.
+**AI chatbot is now ACTIVE** (v0.4.0). It uses the **DeepSeek** OpenAI-compatible API.
+
+- Provider: DeepSeek (`https://api.deepseek.com/v1`), model `deepseek-chat`.
+- API key stored in `.env` as `LLM_API_KEY` (gitignored — never commit it).
+- `ChatService` builds a product-context prompt (keyword retrieval against active products)
+  and calls `POST /chat/completions` via WebClient. Falls back to a friendly placeholder if
+  `LLM_API_KEY` is blank.
+- `ChatbotController` returns `ChatResponse` (blocks on the Mono) — required to make Spring
+  Security 6 `@EnableMethodSecurity` + servlet `SecurityContextHolder` play nicely together.
+- `ChatWidget.tsx` is unchanged; the floating 💬 button on every page is now live.
+- To switch provider: set `LLM_BASE_URL` + `LLM_MODEL` in `.env`; any OpenAI-compatible
+  endpoint works (OpenAI, Groq, Together, local Ollama, etc.).
+- On macOS you may see a harmless netty DNS warning; add
+  `io.netty:netty-resolver-dns-native-macos` (osx-aarch_64 classifier) to `pom.xml` if it bothers you.
 
 ---
 
@@ -228,14 +232,14 @@ Write at least a happy-path test where noted.
 
 ---
 
-## 9. Definition of done — cumulative (P1–P3)
+## 9. Definition of done — cumulative (P1–P4 / v0.4.0)
 - ✅ P1/P2: admin SecKill CRUD, order detail/pay, resend-OTP, reviews, detail pages, JUnit tests. (Codex v0.2.0)
 - ✅ P2 independently re-verified by Claude Code (Sonnet 4.6) on 2026-06-01: 8/8 e2e, all new endpoints smoke-tested.
 - ✅ P3.1 cart checkout: `pages/Cart.tsx`, Navbar badge, `ProductCard.onAddToCart`, sequential checkout, payment selector. (Claude Code v0.3.0)
 - ✅ P3.2 image upload: `UploadController`, `WebMvcConfig`, `ImageUpload` component, wired in SellItem + Admin, Docker volume. (Claude Code v0.3.0)
-- ✅ All builds green (backend + frontend) and `scripts/e2e_test.py` 8/8 after P3.
-- ✅ AI chatbot still ON HOLD (untouched stub).
-- ⬜ Remaining: real server deployment, HTTPS, real SMTP verification end-to-end, AI LLM wiring.
+- ✅ AI chatbot ACTIVE: DeepSeek OpenAI-compatible integration; `ChatService` product-context aware; `ChatWidget` live. (Claude Code v0.4.0)
+- ✅ All builds green (backend + frontend) and `scripts/e2e_test.py` 8/8 after v0.4.0.
+- ⬜ Remaining: real server deployment, HTTPS, real SMTP verification end-to-end.
 
 ---
 

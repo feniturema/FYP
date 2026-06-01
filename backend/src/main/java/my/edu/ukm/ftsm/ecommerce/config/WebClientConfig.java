@@ -5,12 +5,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.reactive.function.client.WebClient;
 
-/** Async, non-blocking client for outbound Gemini calls. */
+/** Async, non-blocking WebClient for LLM calls (OpenAI-compatible endpoint). */
 @Configuration
 public class WebClientConfig {
 
     @Bean
-    public WebClient geminiWebClient(@Value("${app.gemini.base-url}") String baseUrl) {
+    public WebClient llmWebClient(@Value("${app.llm.base-url}") String baseUrl) {
         return WebClient.builder()
                 .baseUrl(baseUrl)
                 .build();

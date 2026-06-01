@@ -5,6 +5,45 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.4.0] — 2026-06-01 — AI chatbot live (DeepSeek)
+
+Authored by Claude Code (Sonnet 4.6). Activates the AI shopping assistant using the
+DeepSeek OpenAI-compatible API.
+
+### Changed — Backend
+- `WebClientConfig`: renamed bean `geminiWebClient` → `llmWebClient`; base URL now reads
+  `app.llm.base-url` (default `https://api.deepseek.com/v1`).
+- `ChatService`: replaced Gemini-specific request/response format with OpenAI-compatible
+  format (`POST /chat/completions`, `messages` array with `system`/`user` roles,
+  `choices[0].message.content` extraction). Injects `LLM_API_KEY` / `LLM_MODEL` env vars
+  (default `deepseek-chat`). Product context still built via lightweight keyword retrieval.
+- `ChatbotController`: changed return type from `Mono<ChatResponse>` → `ChatResponse`
+  (blocks on the Mono). Root cause: Spring Security 6 `@EnableMethodSecurity` applies
+  reactive authorization when a controller method returns `Mono<>`, conflicting with our
+  servlet-based `JwtAuthFilter` (`SecurityContextHolder`) → POST /api/chat returned 403.
+  Blocking at the controller level resolves the conflict; WebClient I/O in ChatService
+  remains non-blocking.
+- `application.yml`: renamed config block `app.gemini.*` → `app.llm.*`
+  (`app.llm.base-url`, `app.llm.api-key`, `app.llm.model`).
+
+### Changed — Config / Docs
+- `.env.example`: replaced `GEMINI_*` vars with `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`.
+- `.env` (local, gitignored): created with real DeepSeek key and base URL for dev use.
+
+### Fixed
+- `POST /api/chat` returning 403 with valid JWT: caused by `@EnableMethodSecurity` + `Mono<>`
+  return type reactive/servlet security context mismatch. Fixed by blocking in controller.
+
+### Verified — 2026-06-01
+- `POST /api/chat` with valid JWT → 200; DeepSeek returns real product-aware AI reply.
+- Reply includes product context (products fetched from DB and injected into prompt).
+- `scripts/e2e_test.py --users 60 --stock 20` — **8/8 passing** (no regression).
+  Note: e2e test reuses fixed email addresses (`student0-59@siswa.ukm.edu.my`); run
+  `DELETE FROM users WHERE email LIKE '%@siswa.ukm.edu.my'` before each run on a
+  persistent DB.
+
+---
+
 ## [v0.3.0] — 2026-06-01 — P3: cart checkout + image upload
 
 Authored by Claude Code (Sonnet 4.6). Builds directly on top of v0.2.0 (Codex).
