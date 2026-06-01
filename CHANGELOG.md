@@ -5,6 +5,19 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.4.1] — 2026-06-01 — Switch to deepseek-v4-pro (reasoning model)
+
+- Default `LLM_MODEL` changed `deepseek-chat` → `deepseek-v4-pro` (user's provisioned model).
+  Verified the model identifier against the live API (supported: `deepseek-v4-pro` /
+  `deepseek-v4-flash`).
+- `ChatService`: raised `max_tokens` 512 → 2048. `deepseek-v4-pro` is a **reasoning model**:
+  its `reasoning_content` tokens are billed against `max_tokens` before the visible
+  `content`, so a small budget returned an empty reply (`finish_reason=length`).
+- Verified: `POST /api/chat` → 200 in ~8.4s, product-aware reply. (First call after boot
+  can be slow due to macOS netty DNS cold-start; steady-state is fast.)
+
+---
+
 ## [v0.4.0] — 2026-06-01 — AI chatbot live (DeepSeek)
 
 Authored by Claude Code (Sonnet 4.6). Activates the AI shopping assistant using the

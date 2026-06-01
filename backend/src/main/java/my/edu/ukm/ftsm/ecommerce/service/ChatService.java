@@ -69,7 +69,10 @@ public class ChatService {
                         Map.of("role", "system", "content", SYSTEM_PERSONA),
                         Map.of("role", "user",   "content", userContent)
                 ),
-                "max_tokens", 512,
+                // deepseek-v4-pro is a reasoning model: reasoning_content tokens count
+                // against max_tokens before the visible answer, so keep this generous
+                // or the assistant reply comes back empty (finish_reason=length).
+                "max_tokens", 2048,
                 "temperature", 0.7
         );
 
