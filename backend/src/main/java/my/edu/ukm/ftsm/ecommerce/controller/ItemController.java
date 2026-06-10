@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import my.edu.ukm.ftsm.ecommerce.dto.ItemDtos.*;
 import my.edu.ukm.ftsm.ecommerce.security.AuthPrincipal;
 import my.edu.ukm.ftsm.ecommerce.service.ItemService;
+import my.edu.ukm.ftsm.ecommerce.service.SmartSearchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -15,15 +16,23 @@ import java.util.List;
 public class ItemController {
 
     private final ItemService itemService;
+    private final SmartSearchService smartSearchService;
 
-    public ItemController(ItemService itemService) {
+    public ItemController(ItemService itemService, SmartSearchService smartSearchService) {
         this.itemService = itemService;
+        this.smartSearchService = smartSearchService;
     }
 
     @GetMapping
     public List<ItemResponse> list(@RequestParam(required = false) String category,
                                    @RequestParam(required = false) String q) {
         return itemService.list(category, q);
+    }
+
+    /** Intent-aware semantic search (LLM rerank). Literal path takes precedence over /{id}. */
+    @GetMapping("/smart-search")
+    public List<ItemResponse> smartSearch(@RequestParam String q) {
+        return smartSearchService.smartSearchItems(q);
     }
 
     @GetMapping("/{id}")

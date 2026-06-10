@@ -1,7 +1,7 @@
 import api from './axios';
 import type {
   AuthResponse, Item, Product, SeckillEvent, SeckillBuyResponse,
-  SeckillResult, Order, Review, ReviewSummary,
+  SeckillResult, Order, Review, ReviewSummary, ChatReply,
 } from '../types';
 
 // ---- Auth ----
@@ -20,6 +20,8 @@ export const authApi = {
 export const itemApi = {
   list: (params?: { q?: string; category?: string }) =>
     api.get<Item[]>('/items', { params }).then((r) => r.data),
+  smartSearch: (q: string) =>
+    api.get<Item[]>('/items/smart-search', { params: { q } }).then((r) => r.data),
   get: (id: number) => api.get<Item>(`/items/${id}`).then((r) => r.data),
   create: (data: Partial<Item>) => api.post<Item>('/items', data).then((r) => r.data),
   update: (id: number, data: Partial<Item>) =>
@@ -30,6 +32,8 @@ export const itemApi = {
 // ---- B2C products ----
 export const productApi = {
   list: (q?: string) => api.get<Product[]>('/products', { params: { q } }).then((r) => r.data),
+  smartSearch: (q: string) =>
+    api.get<Product[]>('/products/smart-search', { params: { q } }).then((r) => r.data),
   get: (id: number) => api.get<Product>(`/products/${id}`).then((r) => r.data),
 };
 
@@ -75,7 +79,7 @@ export const uploadApi = {
 // ---- Chat ----
 export const chatApi = {
   send: (message: string) =>
-    api.post<{ reply: string }>('/chat', { message }).then((r) => r.data),
+    api.post<ChatReply>('/chat', { message }).then((r) => r.data),
 };
 
 // ---- Admin ----

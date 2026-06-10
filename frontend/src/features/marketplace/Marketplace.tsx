@@ -12,6 +12,7 @@ export default function Marketplace() {
   const [products, setProducts] = useState<Product[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [q, setQ] = useState('');
+  const [smart, setSmart] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState('');
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
@@ -20,10 +21,19 @@ export default function Marketplace() {
 
   const load = async () => {
     setLoading(true);
+    setNotice('');
     try {
-      const [p, i] = await Promise.all([productApi.list(q), itemApi.list({ q })]);
+      const useSmart = smart && q.trim().length > 0;
+      const [p, i] = useSmart
+        ? await Promise.all([productApi.smartSearch(q), itemApi.smartSearch(q)])
+        : await Promise.all([productApi.list(q), itemApi.list({ q })]);
       setProducts(p);
       setItems(i);
+      if (useSmart) setNotice('🔍 Smart search: results ranked by AI for your intent.');
+    } catch {
+      setProducts([]);
+      setItems([]);
+      setNotice('Marketplace data is unavailable right now. Please check that the backend is running.');
     } finally {
       setLoading(false);
     }
@@ -45,21 +55,33 @@ export default function Marketplace() {
 
   return (
     <div className="space-y-8">
-      <header className="rounded-2xl bg-gradient-to-r from-ukm-700 to-ukm-900 p-8 text-white">
-        <h1 className="text-3xl font-extrabold">FTSM Campus Marketplace</h1>
-        <p className="mt-1 text-ukm-100">Buy official merch, grab flash deals, and trade with fellow students.</p>
-        <div className="mt-4 max-w-md">
-          <Input placeholder="Search products & listings…" value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && load()} />
+      <header className="ui-panel p-5">
+        <div className="grid gap-4 md:grid-cols-[1fr_22rem] md:items-end">
+          <div>
+            <p className="text-sm font-semibold text-ukm-700">FTSM Campus Marketplace</p>
+            <h1 className="mt-1 text-2xl font-extrabold text-gray-900">Official store and student listings</h1>
+            <p className="mt-1 text-sm text-gray-500">Browse merch, flash deals, and second-hand finds from the UKM community.</p>
+          </div>
+          <div className="space-y-2">
+            <Input placeholder={smart ? 'Describe what you need, e.g. "cheap dorm fan"…' : 'Search products & listings…'}
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && load()} />
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-gray-600">
+              <input type="checkbox" checked={smart}
+                onChange={(e) => setSmart(e.target.checked)}
+                className="h-4 w-4 accent-ukm-700" />
+              🔍 Smart search <span className="text-gray-400">(AI ranks by intent)</span>
+            </label>
+          </div>
         </div>
       </header>
 
-      {notice && <div className="rounded-lg bg-ukm-50 px-4 py-2 text-sm text-ukm-800">{notice}</div>}
+      {notice && <div className="ui-panel animate-fade-up px-4 py-2 text-sm text-ukm-800">{notice}</div>}
 
       {loading ? <Spinner /> : (
         <>
-          <section>
+          <section className="animate-fade-up">
             <h2 className="mb-3 text-lg font-bold text-gray-800">Official Store</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {products.map((p) => (
@@ -80,7 +102,7 @@ export default function Marketplace() {
             </div>
           </section>
 
-          <section>
+          <section className="animate-fade-up [animation-delay:60ms]">
             <h2 className="mb-3 text-lg font-bold text-gray-800">Student Listings (C2C)</h2>
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
               {items.map((i) => (

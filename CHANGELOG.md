@@ -5,6 +5,53 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.5.0] — 2026-06-10 — AI innovation points: agentic assistant + semantic search
+
+Authored by Claude Code (Opus 4.8). Upgrades the platform's "shallow" AI into two
+FYP innovation points (a third — multimodal vision listing — is deferred until a
+vision-capable API is available; DeepSeek's cloud API rejects image input).
+
+### Added — Backend
+- **`service/llm/LlmClient`**: reusable wrapper over the OpenAI-compatible endpoint
+  (reuses the existing `llmWebClient` bean + `app.llm.*` config). Shared by chat + search.
+- **Innovation 1 — Agentic AI shopping assistant.** `ChatService` now drives an OpenAI
+  function-calling loop (capped at 3 rounds). New `service/llm/ChatTools` exposes 4 tools
+  the model can call against live data:
+  - `search_products` (B2C), `search_items` (C2C), `get_seckill_status` (live Redis stock),
+    `get_my_orders` (per-user, via `AuthPrincipal.userId()`).
+  - Product/listing hits are returned as structured `ActionCard`s (≤6, de-duped) so the
+    chat widget can offer one-click **Add to cart / View**.
+- **Innovation 3 — LLM semantic search.** New `service/SmartSearchService` + endpoints
+  `GET /api/items/smart-search` & `GET /api/products/smart-search`: keyword prefilter
+  (≤50 candidates) → LLM reranks by intent → ordered results. Degrades to keyword results
+  if the LLM is unavailable. (Public via existing GET permit rules — no security change.)
+
+### Added — Frontend
+- `ChatWidget`: renders assistant `ActionCard`s with Add-to-cart (wired to `useCartStore`)
+  and View buttons.
+- `Marketplace`: "🔍 Smart search" toggle — opt-in semantic search; keyword search stays
+  the instant default.
+- `types`/`api.ts`: `ActionCard`/`ChatReply` types; `itemApi.smartSearch`, `productApi.smartSearch`.
+
+### Changed — Backend
+- `ChatResponse` now carries an optional `actions` list (back-compat single-arg constructor kept).
+- `ChatbotController` passes the authenticated `userId` through; ChatService runs synchronously
+  (controller already blocked on the result).
+
+### Verified
+- `mvn test` (JDK 21) → **10/10 pass** (added `ChatToolsTest`, `SmartSearchServiceTest`).
+- E2E through backend:
+  - Chat "find cheap lanyards + any live flash sale" → tools fired → product-aware reply +
+    1 action card, ~6.4s.
+  - Chat "my recent orders" → `get_my_orders` fired → correct empty-state reply.
+  - `products/smart-search?q=something to keep me warm on campus` → **FTSM Hoodie** (~2.2s),
+    while keyword `?q=shirt` → empty. `q=cheapest thing I can buy` → price-ascending order,
+    Test items dropped.
+- **Build note:** must build with **JDK 21** (`JAVA_HOME=$(/usr/libexec/java_home -v 21)`);
+  Lombok fails on the machine's default JDK 25 (`TypeTag UNKNOWN`).
+
+---
+
 ## [v0.4.2] — 2026-06-01 — Default model → deepseek-v4-flash (faster)
 
 - Benchmarked both DeepSeek v4 models (3 runs each, same product-context prompt):

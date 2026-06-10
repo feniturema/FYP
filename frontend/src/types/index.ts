@@ -91,7 +91,21 @@ export interface ReviewSummary {
   reviews: Review[];
 }
 
+export interface ActionCard {
+  sourceType: 'C2C_ITEM' | 'B2C_PRODUCT';
+  refId: number;
+  name: string;
+  price: number;
+  imageUrl?: string;
+}
+
 export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
+  actions?: ActionCard[];
+}
+
+export interface ChatReply {
+  reply: string;
+  actions?: ActionCard[];
 }

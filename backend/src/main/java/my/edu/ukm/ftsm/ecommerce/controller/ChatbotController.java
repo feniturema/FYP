@@ -2,14 +2,17 @@ package my.edu.ukm.ftsm.ecommerce.controller;
 
 import jakarta.validation.Valid;
 import my.edu.ukm.ftsm.ecommerce.dto.ChatDtos.*;
+import my.edu.ukm.ftsm.ecommerce.security.AuthPrincipal;
 import my.edu.ukm.ftsm.ecommerce.service.ChatService;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Chat endpoint. ChatService uses WebClient internally for non-blocking LLM I/O;
- * we block() here so the Servlet security context (JwtAuthFilter) is fully respected.
- * Spring Security 6 reactive method-level security is incompatible with the servlet
- * SecurityContextHolder when a controller returns Mono<> without a reactive security context.
+ * Chat endpoint for the agentic AI shopping assistant.
+ * The user must be authenticated (handled by SecurityConfig); the principal's
+ * userId is passed through so the assistant can look up the user's own orders.
+ * ChatService runs the tool-calling loop synchronously (it blocks on LLM I/O
+ * internally), keeping the servlet SecurityContext intact for tool DB access.
  */
 @RestController
 @RequestMapping("/api/chat")
@@ -22,7 +25,9 @@ public class ChatbotController {
     }
 
     @PostMapping
-    public ChatResponse chat(@Valid @RequestBody ChatRequest req) {
-        return chatService.chat(req.message()).block();
+    public ChatResponse chat(@AuthenticationPrincipal AuthPrincipal principal,
+                             @Valid @RequestBody ChatRequest req) {
+        Long userId = principal != null ? principal.userId() : null;
+        return chatService.chat(req.message(), userId);
     }
 }
