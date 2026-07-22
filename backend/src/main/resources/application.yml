@@ -63,10 +63,12 @@ app:
     admin-email: ${SEED_ADMIN_EMAIL:admin@ukm.edu.my}
     admin-password: ${SEED_ADMIN_PASSWORD:Admin@123}
   upload:
-    dir: ${UPLOAD_DIR:uploads}   # relative to working dir; Docker maps this to a volume
+    dir: ${UPLOAD_DIR:uploads}   # default resolves to repo-root uploads when started from backend/
   openai:
     api-key: ${OPENAI_API_KEY:}
     vision-model: ${OPENAI_VISION_MODEL:gpt-4o}
+  payment:
+    mock-fpx-success-rate: ${MOCK_FPX_SUCCESS_RATE:100}
 
 management:
   endpoints:

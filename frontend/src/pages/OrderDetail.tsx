@@ -7,7 +7,7 @@ import { formatDateTime, rm } from '../utils/format';
 
 const PAYMENT_METHODS = [
   { value: 'FAKE_WALLET', label: 'Campus Wallet (always succeeds)' },
-  { value: 'MOCK_FPX', label: 'FPX Bank Transfer (~90%)' },
+  { value: 'MOCK_FPX', label: 'FPX Bank Transfer (demo-safe)' },
 ];
 
 export default function OrderDetail() {

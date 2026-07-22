@@ -14,7 +14,7 @@ class PaymentStrategyFactoryTest {
     void resolvesKnownStrategies() {
         PaymentStrategyFactory factory = new PaymentStrategyFactory(List.of(
                 new FakeWalletStrategy(),
-                new MockFpxStrategy()
+                new MockFpxStrategy(100)
         ));
 
         assertThat(factory.resolve("FAKE_WALLET")).isInstanceOf(FakeWalletStrategy.class);

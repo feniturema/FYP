@@ -5,8 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
-import java.nio.file.Paths;
-
 /** Serves uploaded images from the local `uploads/` directory as static files. */
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
@@ -17,7 +15,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // "file:" prefix + trailing "/" required by Spring's resource location format.
-        String location = "file:" + Paths.get(uploadDir).toAbsolutePath() + "/";
+        String location = "file:" + UploadPathResolver.resolve(uploadDir) + "/";
         registry.addResourceHandler("/uploads/**")
                 .addResourceLocations(location);
     }

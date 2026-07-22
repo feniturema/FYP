@@ -7,7 +7,7 @@ import { rm } from '../utils/format';
 
 const PAYMENT_METHODS = [
   { value: 'FAKE_WALLET', label: 'Campus Wallet', desc: 'Always succeeds — for testing' },
-  { value: 'MOCK_FPX', label: 'FPX Bank Transfer', desc: '~90% success rate — mock simulation' },
+  { value: 'MOCK_FPX', label: 'FPX Bank Transfer', desc: 'Mock bank transfer — demo-safe' },
 ];
 
 export default function Cart() {

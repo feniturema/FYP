@@ -5,6 +5,34 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.6.1] — 2026-07-22 — Pre-demo hardening (second-pass review)
+
+Second-pass review fixes to make the live demo robust. Backend tests pass on Java 21;
+`npm run build` passes.
+
+### Fixed
+- **Production build broken**: `vite.config.ts` used `tailwindConfig as const`, which failed
+  TypeScript on `npm run build` → switched to an explicit `TailwindConfig` type. Build passes.
+- **Upload directory path drift**: `app.upload.dir` defaulted to a working-dir-relative
+  `uploads`, so starting the backend from `backend/` read the wrong folder (broken product
+  images, GPT-4o could not read local uploads). New `config/UploadPathResolver` resolves the
+  default to the repo-root `uploads/` when started from `backend/`; shared by `UploadController`,
+  `WebMvcConfig` (static serving) and `ListingDraftService` (vision image read).
+
+### Changed
+- **Payment demo stability**: `MockFpxStrategy` now defaults to `MOCK_FPX_SUCCESS_RATE=100`
+  (was a 10% random failure), still overridable via env; Cart/OrderDetail copy updated to match.
+
+### Added
+- Tests: `UploadPathResolver` path resolution + `MockFpxStrategy` demo-safe default.
+- `.env.example`: documented `UPLOAD_DIR`, `OPENAI_API_KEY`/`OPENAI_VISION_MODEL`, `MOCK_FPX_SUCCESS_RATE`.
+
+### Notes
+- Run tests/demo on **Java 21** (`JAVA_HOME=$(/usr/libexec/java_home -v 21)`); Java 25 breaks
+  Mockito/Byte Buddy. Ensure MySQL:3306 + Redis:6379 are up before starting the backend.
+
+---
+
 ## [v0.6.0] — 2026-07-22 — Multimodal vision listing, UI overhaul & pre-demo QA pass
 
 Lands the third AI innovation point (deferred in v0.5.0), a full front-end visual

@@ -1,10 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from 'tailwindcss';
+import tailwindcss, { type Config as TailwindConfig } from 'tailwindcss';
 import autoprefixer from 'autoprefixer';
 
 // Inline config — bypasses iCloud-evicted postcss.config.cjs / tailwind.config.cjs
-const tailwindConfig = {
+const tailwindConfig: TailwindConfig = {
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
@@ -59,13 +59,13 @@ const tailwindConfig = {
     },
   },
   plugins: [],
-} as const;
+};
 
 export default defineConfig({
   plugins: [react()],
   css: {
     postcss: {
-      plugins: [tailwindcss(tailwindConfig as Parameters<typeof tailwindcss>[0]), autoprefixer()],
+      plugins: [tailwindcss(tailwindConfig), autoprefixer()],
     },
   },
   server: {

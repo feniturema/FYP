@@ -25,3 +25,4 @@ skills-lock.json
 
 # Vite temp build artifacts
 frontend/vite.config.ts.timestamp-*.mjs
+db_backup_*.sql

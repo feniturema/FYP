@@ -1,6 +1,7 @@
 package my.edu.ukm.ftsm.ecommerce.controller;
 
 import my.edu.ukm.ftsm.ecommerce.exception.BusinessException;
+import my.edu.ukm.ftsm.ecommerce.config.UploadPathResolver;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -9,7 +10,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,10 +26,10 @@ public class UploadController {
     private static final java.util.Set<String> ALLOWED_TYPES = java.util.Set.of(
             "image/jpeg", "image/png", "image/webp", "image/gif");
 
-    private final String uploadDir;
+    private final Path uploadDir;
 
     public UploadController(@Value("${app.upload.dir:uploads}") String uploadDir) {
-        this.uploadDir = uploadDir;
+        this.uploadDir = UploadPathResolver.resolve(uploadDir);
     }
 
     @PostMapping
@@ -49,9 +49,8 @@ public class UploadController {
                 .replace("jpeg", "jpg");
         String filename = UUID.randomUUID() + "." + ext;
 
-        Path dir = Paths.get(uploadDir);
-        Files.createDirectories(dir);
-        Files.copy(file.getInputStream(), dir.resolve(filename));
+        Files.createDirectories(uploadDir);
+        Files.copy(file.getInputStream(), uploadDir.resolve(filename));
 
         return ResponseEntity.ok(Map.of("url", "/uploads/" + filename));
     }

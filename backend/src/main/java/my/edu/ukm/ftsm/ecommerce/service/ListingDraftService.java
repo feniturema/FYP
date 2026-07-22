@@ -2,6 +2,7 @@ package my.edu.ukm.ftsm.ecommerce.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import my.edu.ukm.ftsm.ecommerce.config.UploadPathResolver;
 import my.edu.ukm.ftsm.ecommerce.dto.ItemDtos.ItemDraftResponse;
 import my.edu.ukm.ftsm.ecommerce.exception.BusinessException;
 import org.slf4j.Logger;
@@ -14,7 +15,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.math.BigDecimal;
 import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Base64;
 
@@ -32,7 +33,7 @@ public class ListingDraftService {
 
     private final String openAiApiKey;
     private final String visionModel;
-    private final String uploadDir;
+    private final Path uploadDir;
     private final WebClient openAiClient;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,7 +43,7 @@ public class ListingDraftService {
             @Value("${app.upload.dir:uploads}") String uploadDir) {
         this.openAiApiKey = openAiApiKey;
         this.visionModel = visionModel;
-        this.uploadDir = uploadDir;
+        this.uploadDir = UploadPathResolver.resolve(uploadDir);
         this.openAiClient = WebClient.builder()
                 .baseUrl("https://api.openai.com/v1")
                 .build();
@@ -144,7 +145,7 @@ public class ListingDraftService {
         // Local uploads: imageUrl is like "/uploads/uuid.png" — read from disk
         String relative = imageUrl.startsWith("/") ? imageUrl.substring(1) : imageUrl;
         try {
-            byte[] bytes = Files.readAllBytes(Paths.get(uploadDir).resolve(
+            byte[] bytes = Files.readAllBytes(uploadDir.resolve(
                     relative.replaceFirst("^uploads/", "")));
             String mimeType = relative.endsWith(".png") ? "image/png"
                     : relative.endsWith(".webp") ? "image/webp"
