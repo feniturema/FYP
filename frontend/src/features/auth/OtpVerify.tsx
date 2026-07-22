@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authApi } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
-import Button from '../../components/common/Button';
-import Input from '../../components/common/Input';
-import { AuthCard } from './Register';
+import { AuthLayout } from './Login';
 
 export default function OtpVerify() {
   const location = useLocation();
@@ -19,12 +17,11 @@ export default function OtpVerify() {
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
       const auth = await authApi.verifyOtp({ email, code });
       setSession(auth);
-      navigate('/');
+      navigate('/marketplace');
     } catch (err: any) {
       setError(err.response?.data?.message ?? 'Verification failed.');
     } finally {
@@ -33,38 +30,53 @@ export default function OtpVerify() {
   };
 
   const resend = async () => {
-    setError('');
-    setNotice('');
-    setResending(true);
+    setError(''); setNotice(''); setResending(true);
     try {
       const res = await authApi.resendOtp({ email });
       setNotice(res.message);
     } catch (err: any) {
-      setError(err.response?.data?.message ?? 'Failed to resend code.');
+      setError(err.response?.data?.message ?? 'Failed to resend.');
     } finally {
       setResending(false);
     }
   };
 
   return (
-    <AuthCard title="Verify your email" subtitle="Enter the 6-digit code sent to your UKM email">
+    <AuthLayout title="Verify your email" subtitle="Enter the 6-digit code sent to your UKM email">
       <form onSubmit={submit} className="space-y-4">
-        <Input label="Email" type="email" value={email}
-          onChange={(e) => setEmail(e.target.value)} required />
-        <Input label="Verification code" value={code} maxLength={6} placeholder="123456"
-          onChange={(e) => setCode(e.target.value)} required />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {notice && <p className="text-sm text-green-700">{notice}</p>}
-        <Button type="submit" full disabled={loading}>
-          {loading ? 'Verifying…' : 'Verify & continue'}
-        </Button>
-        <Button type="button" variant="outline" full disabled={resending || !email} onClick={resend}>
+        <label className="block">
+          <span className="app-label mb-1.5 block">Email</span>
+          <input className="app-input" type="email" value={email}
+            onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <label className="block">
+          <span className="app-label mb-1.5 block">Verification Code</span>
+          <input
+            className="app-input text-center app-mono text-xl tracking-[0.4em]"
+            placeholder="000000"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            maxLength={6}
+            required
+          />
+        </label>
+        {error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
+        {notice && <p className="text-sm" style={{ color: '#10b981' }}>{notice}</p>}
+        <button type="submit" disabled={loading} className="btn btn-brand w-full justify-center py-3">
+          {loading ? 'Verifying…' : 'Verify & continue →'}
+        </button>
+        <button
+          type="button"
+          disabled={resending || !email}
+          onClick={resend}
+          className="btn btn-outline w-full justify-center py-3"
+        >
           {resending ? 'Sending…' : 'Resend code'}
-        </Button>
+        </button>
       </form>
-      <p className="mt-4 text-center text-xs text-gray-400">
-        Tip: in local dev (mail disabled) the code is printed in the backend console.
+      <p className="mt-4 text-center text-xs" style={{ color: 'var(--text-faint)' }}>
+        In local dev, the OTP is printed in the backend console.
       </p>
-    </AuthCard>
+    </AuthLayout>
   );
 }

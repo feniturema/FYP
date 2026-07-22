@@ -2,9 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { orderApi } from '../services/api';
 import type { Order } from '../types';
-import Button from '../components/common/Button';
 import Spinner from '../components/common/Spinner';
 import { formatDateTime, rm } from '../utils/format';
+
+const PAYMENT_METHODS = [
+  { value: 'FAKE_WALLET', label: 'Campus Wallet (always succeeds)' },
+  { value: 'MOCK_FPX', label: 'FPX Bank Transfer (~90%)' },
+];
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -23,8 +27,7 @@ export default function OrderDetail() {
 
   const pay = async () => {
     if (!order) return;
-    setPaying(true);
-    setMsg('');
+    setPaying(true); setMsg('');
     try {
       const updated = await orderApi.pay(order.id, method);
       setOrder(updated);
@@ -37,38 +40,91 @@ export default function OrderDetail() {
   };
 
   if (loading) return <Spinner />;
-  if (!order) return <p className="text-sm text-gray-500">Order not found.</p>;
+  if (!order) return <p className="text-sm" style={{ color: 'var(--text-faint)' }}>Order not found.</p>;
 
   return (
     <div className="max-w-2xl space-y-6">
-      <Link to="/orders" className="text-sm font-semibold text-ukm-700">Back to orders</Link>
+      <Link
+        to="/orders"
+        className="app-mono text-[11px] uppercase tracking-[0.16em] flex items-center gap-1.5 transition-colors"
+        style={{ color: 'var(--text-faint)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--signal)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-faint)')}
+      >
+        ← Back to orders
+      </Link>
+
       <div>
-        <h1 className="text-2xl font-extrabold text-ukm-700">Order #{order.id}</h1>
-        <p className="text-sm text-gray-500">{formatDateTime(order.createdAt)}</p>
+        <span className="app-kicker mb-1 block">Order Detail</span>
+        <h1 className="font-display text-3xl font-extrabold uppercase tracking-tight">#{order.id}</h1>
+        <p className="mt-0.5 app-mono text-[11px]" style={{ color: 'var(--text-faint)' }}>
+          {formatDateTime(order.createdAt)}
+        </p>
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 rounded-lg border border-gray-200 bg-white p-5 text-sm">
-        <div><dt className="text-gray-500">Type</dt><dd className="font-semibold">{order.sourceType}</dd></div>
-        <div><dt className="text-gray-500">Reference</dt><dd className="font-semibold">#{order.refId}</dd></div>
-        <div><dt className="text-gray-500">Amount</dt><dd className="font-semibold">{rm(order.amount)}</dd></div>
-        <div><dt className="text-gray-500">Status</dt><dd className="font-semibold">{order.status}</dd></div>
-        <div><dt className="text-gray-500">Payment</dt><dd className="font-semibold">{order.paymentMethod || 'Not selected'}</dd></div>
-      </dl>
+      {/* Details panel */}
+      <div className="app-panel overflow-hidden">
+        {[
+          ['Type', order.sourceType === 'B2C_PRODUCT' ? 'Official store' : 'Student listing'],
+          ['Reference', `#${order.refId}`],
+          ['Amount', rm(order.amount)],
+          ['Status', order.status],
+          ['Payment', order.paymentMethod
+            ? (PAYMENT_METHODS.find((m) => m.value === order.paymentMethod)?.label.replace(/\s*\(.*\)$/, '') ?? order.paymentMethod)
+            : 'Not selected'],
+        ].map(([label, value], i) => (
+          <div
+            key={label}
+            className="flex items-center justify-between px-4 py-3.5"
+            style={{ borderTop: i > 0 ? '1px solid var(--hair)' : 'none' }}
+          >
+            <span className="app-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: 'var(--text-faint)' }}>
+              {label}
+            </span>
+            <span
+              className="text-sm font-semibold"
+              style={{
+                color: label === 'Status'
+                  ? (order.status === 'PAID' ? '#10b981' : order.status === 'FAILED' ? 'var(--signal)' : 'var(--text)')
+                  : 'var(--text)',
+              }}
+            >
+              {value}
+            </span>
+          </div>
+        ))}
+      </div>
 
+      {/* Payment action */}
       {order.status === 'PENDING' && (
-        <div className="space-y-3 rounded-lg border border-gray-200 bg-white p-5">
+        <div className="app-panel p-5 space-y-4">
+          <h2 className="font-display text-base font-bold uppercase tracking-tight">Complete Payment</h2>
           <label className="block">
-            <span className="mb-1 block text-sm font-medium text-gray-700">Payment method</span>
-            <select className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-              value={method} onChange={(e) => setMethod(e.target.value)}>
-              <option value="FAKE_WALLET">FAKE_WALLET</option>
-              <option value="MOCK_FPX">MOCK_FPX</option>
+            <span className="app-label mb-1.5 block">Payment Method</span>
+            <select
+              className="app-input"
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+            >
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
             </select>
           </label>
-          <Button onClick={pay} disabled={paying}>{paying ? 'Paying…' : 'Pay'}</Button>
+          <button onClick={pay} disabled={paying} className="btn btn-brand w-full justify-center py-3">
+            {paying ? 'Processing…' : 'Pay now →'}
+          </button>
         </div>
       )}
-      {msg && <p className="text-sm text-gray-600">{msg}</p>}
+
+      {msg && (
+        <p
+          className="app-mono text-[11px] uppercase tracking-[0.14em]"
+          style={{ color: msg.includes('PAID') ? '#10b981' : 'var(--signal)' }}
+        >
+          {msg}
+        </p>
+      )}
     </div>
   );
 }

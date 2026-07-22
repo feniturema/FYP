@@ -109,3 +109,11 @@ export interface ChatReply {
   reply: string;
   actions?: ActionCard[];
 }
+
+export interface ItemDraft {
+  title: string;
+  description: string;
+  category: string;
+  condition: string;
+  suggestedPrice: number;
+}

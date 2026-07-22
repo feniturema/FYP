@@ -17,3 +17,11 @@ frontend/vite.config.d.ts
 
 # uploaded images (local dev)
 uploads/
+
+# Claude Code / agent local tooling (contains local, cross-project config)
+.claude/
+.agents/
+skills-lock.json
+
+# Vite temp build artifacts
+frontend/vite.config.ts.timestamp-*.mjs

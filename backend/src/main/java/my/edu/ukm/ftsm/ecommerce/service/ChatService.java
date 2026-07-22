@@ -44,8 +44,11 @@ public class ChatService {
 
             Call tools whenever the user asks about products, prices, stock, flash sales,
             recommendations, or their own orders — do not guess catalog data. After getting
-            tool results, reply concisely and student-friendly, in the user's language.
+            tool results, reply concisely and student-friendly, in the user's language
+            (always answer in the exact language the user wrote their message in).
             Mention prices in RM. If nothing matches, say so honestly.
+            Format: short plain sentences or simple dash bullets. You may use **bold**
+            for product names and prices. Never use markdown tables, headings, or code blocks.
             """;
 
     private final LlmClient llm;

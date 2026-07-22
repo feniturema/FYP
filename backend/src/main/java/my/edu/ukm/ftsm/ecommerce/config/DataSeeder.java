@@ -46,20 +46,7 @@ public class DataSeeder {
                         .build());
                 log.info("[Seed] created admin user {}", adminEmail);
             }
-            if (productRepository.count() == 0) {
-                productRepository.saveAll(List.of(
-                        Product.builder().name("FTSM Hoodie").description("Official faculty hoodie")
-                                .price(new BigDecimal("79.00")).totalStock(100).category("Apparel")
-                                .imageUrl("https://placehold.co/400x400?text=Hoodie").build(),
-                        Product.builder().name("UKM Tumbler").description("Stainless steel tumbler")
-                                .price(new BigDecimal("35.00")).totalStock(200).category("Lifestyle")
-                                .imageUrl("https://placehold.co/400x400?text=Tumbler").build(),
-                        Product.builder().name("Limited Edition Lanyard").description("Flash-sale lanyard")
-                                .price(new BigDecimal("15.00")).totalStock(50).category("Accessories")
-                                .imageUrl("https://placehold.co/400x400?text=Lanyard").build()
-                ));
-                log.info("[Seed] inserted sample products");
-            }
+            // Product seeding disabled — admin adds real products via dashboard
         };
     }
 }

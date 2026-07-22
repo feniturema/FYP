@@ -5,6 +5,59 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.6.0] — 2026-07-22 — Multimodal vision listing, UI overhaul & pre-demo QA pass
+
+Lands the third AI innovation point (deferred in v0.5.0), a full front-end visual
+redesign, and a browser-based UI/UX test pass run the day before the live demo.
+The QA pass drove all fixes in the **Fixed** section below — each was reproduced in a
+real browser and re-verified after the fix (see `docs/DEMO_UI_TEST_REPORT.md`).
+
+### Added
+- **Innovation 3 — multimodal AI listing draft (now live via GPT-4o Vision).** New
+  `service/ListingDraftService` + `POST /api/items/draft-from-image`: a student uploads a
+  photo, the image is base64-encoded server-side and sent to GPT-4o, and the model returns
+  a pre-filled draft (title, description, category, condition, suggested RM price) the
+  student can edit before publishing. `SellItem` gains an "AI fill from photo" action.
+  (v0.5.0 deferred this because DeepSeek rejects image input; implemented against OpenAI.)
+- **Front-end visual redesign**: new dark `Landing` page, cursor/scroll effect layer
+  (`components/fx/` — Aurora background, spotlight, crosshair, scroll-reveal), a `Profile`
+  page, and a restyle of the whole app (navbar, cards, forms, marketplace, seckill, chat).
+- `docs/DEMO_UI_TEST_REPORT.md`: full pre-demo test matrix, findings, and a morning
+  smoke-test checklist.
+
+### Changed
+- Build config migrated to CommonJS (`postcss.config.cjs`, `tailwind.config.cjs`) to fix a
+  Node 24 + ESM PostCSS hang; removed the old `.js` configs.
+- `ChatService` system prompt now instructs the assistant to answer in the user's language
+  and to avoid markdown tables/headings/code blocks (which rendered as raw text in the bubble).
+
+### Fixed (pre-demo QA — all browser-reproduced & re-verified)
+- **🔴 Cannot publish a listing after uploading a local image** (`ImageUpload.tsx`): the
+  "paste URL" field was `<input type="url">`, so an uploaded image's relative path
+  (`/uploads/xxx.jpg`) failed native URL validation and blocked the *entire* form from
+  submitting ("Please enter a URL"). Affected **both** student listings (`SellItem`) and
+  admin product creation (`AdminDashboard`), which share the component. Changed to
+  `type="text"` + `inputMode="url"`. End-to-end re-verified: item created with relative image URL.
+- **🔴 Broken product images**: `app.upload.dir` is resolved relative to the working
+  directory, so images 404/500 when the backend is started from `backend/`. Consolidated all
+  files into the repo-root `uploads/` and documented starting with an absolute `UPLOAD_DIR`
+  (permanent fix options tracked in the report).
+- Auth error messages were brand-blue and did not read as errors → added `--danger` (#dc2626);
+  `Login`/`Register`/`OtpVerify` now show errors in red.
+- Marketplace "AI Search" toggle had a tiny (32×16px) hit area; clicking the label text did
+  nothing → click handler moved to the whole `<label>`.
+- Chat bubbles showed raw markdown `**` and `|table|` syntax → added minimal safe inline
+  rendering for `**bold**`/`` `code` `` (no `dangerouslySetInnerHTML`).
+- Order detail exposed the internal enum `FAKE_WALLET` → mapped to "Campus Wallet".
+- Landing hero headline overflowed and was clipped on mobile → responsive font sizing.
+- Footer year "FYP 2025" was inconsistent with the Landing page → unified to 2026.
+
+### Verified
+- Full UI walkthrough (desktop 1280×720 + mobile 375×812) with AI features live (DeepSeek
+  chat + semantic search, GPT-4o vision listing): 29 checkpoints pass, console clean.
+
+---
+
 ## [v0.5.0] — 2026-06-10 — AI innovation points: agentic assistant + semantic search
 
 Authored by Claude Code (Opus 4.8). Upgrades the platform's "shallow" AI into two

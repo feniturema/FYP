@@ -43,6 +43,32 @@ class SmartSearchServiceTest {
         assertThat(out).extracting(ItemResponse::id).containsExactly(3L, 1L);
     }
 
+    /** An explicit empty selection means "nothing relevant" -> return no results, not everything. */
+    @Test
+    void returnsEmptyWhenLlmFindsNothingRelevant() {
+        when(itemRepository.findByStatus(Item.Status.ACTIVE))
+                .thenReturn(List.of(item(1, "Fan"), item(2, "Lamp")));
+        when(llm.isConfigured()).thenReturn(true);
+        when(llm.chatCompletion(any(), isNull())).thenReturn(llmReply("{\"ids\":[]}"));
+
+        List<ItemResponse> out = service.smartSearchItems("laptop");
+
+        assertThat(out).isEmpty();
+    }
+
+    /** A malformed reply (not parseable) degrades to the keyword candidate order. */
+    @Test
+    void fallsBackToKeywordResultsWhenReplyUnparseable() {
+        when(itemRepository.findByStatus(Item.Status.ACTIVE))
+                .thenReturn(List.of(item(1, "Fan"), item(2, "Lamp")));
+        when(llm.isConfigured()).thenReturn(true);
+        when(llm.chatCompletion(any(), isNull())).thenReturn(llmReply("sorry, I can't help"));
+
+        List<ItemResponse> out = service.smartSearchItems("fan");
+
+        assertThat(out).extracting(ItemResponse::id).containsExactly(1L, 2L);
+    }
+
     /** When the LLM is down, smart search degrades to the keyword candidate list. */
     @Test
     void fallsBackToKeywordResultsWhenLlmUnavailable() {

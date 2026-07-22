@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/layout/ProtectedRoute';
+import Landing from './features/landing/Landing';
 import Marketplace from './features/marketplace/Marketplace';
 import ProductDetail from './features/marketplace/ProductDetail';
 import ItemDetail from './features/marketplace/ItemDetail';
@@ -12,12 +13,16 @@ import OtpVerify from './features/auth/OtpVerify';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Cart from './pages/Cart';
+import Profile from './pages/Profile';
 import AdminDashboard from './features/admin/AdminDashboard';
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Landing page — full-screen dark, no app chrome */}
+        <Route path="/" element={<Landing />} />
+
         {/* Auth routes (no chrome) */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
@@ -25,7 +30,7 @@ export default function App() {
 
         {/* App routes (with navbar + chat) */}
         <Route element={<Layout />}>
-          <Route path="/" element={<Marketplace />} />
+          <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/item/:id" element={<ItemDetail />} />
           <Route path="/seckill" element={<SeckillList />} />
@@ -35,6 +40,7 @@ export default function App() {
             <Route path="/orders" element={<Orders />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/cart" element={<Cart />} />
+            <Route path="/profile" element={<Profile />} />
           </Route>
 
           <Route element={<ProtectedRoute adminOnly />}>

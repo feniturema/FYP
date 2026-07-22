@@ -4,11 +4,10 @@ import { useCartStore } from '../store/useCartStore';
 import { orderApi } from '../services/api';
 import { useAuthStore } from '../store/useAuthStore';
 import { rm } from '../utils/format';
-import Button from '../components/common/Button';
 
 const PAYMENT_METHODS = [
-  { value: 'FAKE_WALLET', label: 'Campus Wallet (always succeeds)' },
-  { value: 'MOCK_FPX', label: 'FPX Bank Transfer (~90% success)' },
+  { value: 'FAKE_WALLET', label: 'Campus Wallet', desc: 'Always succeeds — for testing' },
+  { value: 'MOCK_FPX', label: 'FPX Bank Transfer', desc: '~90% success rate — mock simulation' },
 ];
 
 export default function Cart() {
@@ -20,27 +19,18 @@ export default function Cart() {
   const [results, setResults] = useState<{ title: string; status: string }[]>([]);
   const [done, setDone] = useState(false);
 
-  if (!isAuthed) {
-    navigate('/login');
-    return null;
-  }
+  if (!isAuthed) { navigate('/login'); return null; }
 
   const checkout = async () => {
     if (lines.length === 0) return;
-    setBusy(true);
-    setResults([]);
+    setBusy(true); setResults([]);
     const settled: { title: string; status: string }[] = [];
     for (const line of lines) {
       try {
-        const order = await orderApi.create({
-          sourceType: line.sourceType,
-          refId: line.refId,
-          paymentMethod,
-        });
+        const order = await orderApi.create({ sourceType: line.sourceType, refId: line.refId, paymentMethod });
         settled.push({ title: line.title, status: order.status });
       } catch (err: any) {
-        const msg = err.response?.data?.message ?? 'Failed';
-        settled.push({ title: line.title, status: `ERROR: ${msg}` });
+        settled.push({ title: line.title, status: `FAILED: ${err.response?.data?.message ?? 'Error'}` });
       }
     }
     setResults(settled);
@@ -50,81 +40,148 @@ export default function Cart() {
   };
 
   if (done) {
+    const allPaid = results.every((r) => r.status === 'PAID');
     return (
-      <div className="mx-auto max-w-lg space-y-4 rounded-2xl border border-gray-200 bg-white p-8">
-        <h1 className="text-xl font-bold text-ukm-700">Checkout complete</h1>
-        <ul className="space-y-2">
-          {results.map((r, i) => (
-            <li key={i} className="flex items-center justify-between text-sm">
-              <span className="truncate text-gray-700">{r.title}</span>
-              <span className={`ml-4 shrink-0 font-semibold ${r.status === 'PAID' ? 'text-green-600' : 'text-red-600'}`}>
-                {r.status}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="flex gap-3">
-          <Link to="/orders"><Button>View orders</Button></Link>
-          <Link to="/"><Button variant="outline">Continue shopping</Button></Link>
+      <div className="mx-auto max-w-xl animate-fade-up">
+        <div className="app-panel p-8 space-y-5">
+          <div>
+            <span className="app-kicker mb-2 block">Checkout complete</span>
+            <h1 className="font-display text-2xl font-extrabold uppercase tracking-tight">
+              {allPaid ? 'All orders confirmed' : 'Order summary'}
+            </h1>
+          </div>
+          <div style={{ borderTop: '1px solid var(--hair)' }}>
+            {results.map((r, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between py-3"
+                style={{ borderBottom: '1px solid var(--hair)' }}
+              >
+                <span className="text-sm truncate" style={{ color: 'var(--text)', maxWidth: '65%' }}>{r.title}</span>
+                <span
+                  className="app-mono text-[11px] font-bold"
+                  style={{ color: r.status === 'PAID' ? '#10b981' : 'var(--signal)' }}
+                >
+                  {r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-3">
+            <Link to="/orders" className="btn btn-brand">View orders</Link>
+            <Link to="/marketplace" className="btn btn-outline">Continue shopping</Link>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
-      <h1 className="text-2xl font-extrabold text-ukm-700">Shopping Cart</h1>
+    <div className="mx-auto max-w-2xl space-y-6">
+      {/* Header */}
+      <div>
+        <span className="app-kicker mb-1 block">Shopping</span>
+        <h1 className="font-display text-3xl font-extrabold uppercase tracking-tight">Cart</h1>
+      </div>
 
       {lines.length === 0 ? (
-        <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-500">
-          Your cart is empty.{' '}
-          <Link to="/" className="text-ukm-700 hover:underline">Browse marketplace</Link>
+        <div
+          className="flex flex-col items-center justify-center py-20"
+          style={{ border: '1px dashed var(--hair-strong)', borderRadius: 12 }}
+        >
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"
+            style={{ color: 'var(--text-faint)', marginBottom: 12 }}>
+            <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+            <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+          </svg>
+          <p className="app-mono text-[11px] uppercase tracking-[0.16em]" style={{ color: 'var(--text-faint)' }}>
+            Your cart is empty
+          </p>
+          <Link to="/marketplace" className="btn btn-outline mt-4">Browse marketplace</Link>
         </div>
       ) : (
-        <>
-          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+        <div className="grid gap-5 md:grid-cols-[1fr_280px]">
+          {/* Items */}
+          <div className="app-panel overflow-hidden">
+            <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--hair)', background: 'var(--surface-raised)' }}>
+              <span className="app-mono text-[10px] uppercase tracking-[0.18em]" style={{ color: 'var(--text-faint)' }}>
+                {lines.length} item{lines.length !== 1 ? 's' : ''}
+              </span>
+            </div>
             {lines.map((line, i) => (
-              <div key={i} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-gray-100' : ''}`}>
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{line.title}</p>
-                  <p className="text-xs text-gray-500">{line.sourceType === 'B2C_PRODUCT' ? 'Official store' : 'Student listing'}</p>
+              <div
+                key={i}
+                className="flex items-center justify-between px-4 py-3.5"
+                style={{ borderBottom: '1px solid var(--hair)' }}
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text)' }}>{line.title}</p>
+                  <p className="app-mono text-[10px] mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                    {line.sourceType === 'B2C_PRODUCT' ? 'Official store' : 'Student listing'}
+                  </p>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-bold text-ukm-700">{rm(line.price)}</span>
+                <div className="flex items-center gap-4 shrink-0 ml-4">
+                  <span className="font-display font-bold" style={{ color: 'var(--brand)' }}>{rm(line.price)}</span>
                   <button
                     onClick={() => remove(line.refId, line.sourceType)}
-                    className="text-xs text-red-500 hover:underline"
+                    className="app-mono text-[10px] uppercase tracking-wider transition-colors"
+                    style={{ color: 'var(--text-faint)' }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--signal)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--text-faint)')}
                   >
                     Remove
                   </button>
                 </div>
               </div>
             ))}
-            <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-3">
-              <span className="text-sm font-semibold text-gray-700">Total</span>
-              <span className="text-lg font-extrabold text-ukm-700">{rm(total())}</span>
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ background: 'var(--surface-raised)' }}
+            >
+              <span className="app-mono text-[11px] uppercase tracking-[0.14em]" style={{ color: 'var(--text-dim)' }}>Total</span>
+              <span className="font-display text-2xl font-extrabold" style={{ color: 'var(--text)' }}>{rm(total())}</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
-            <label className="block">
-              <span className="mb-1 block text-sm font-medium text-gray-700">Payment method</span>
-              <select
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm"
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-              >
-                {PAYMENT_METHODS.map((m) => (
-                  <option key={m.value} value={m.value}>{m.label}</option>
-                ))}
-              </select>
-            </label>
-            <Button full onClick={checkout} disabled={busy}>
+          {/* Checkout panel */}
+          <div className="space-y-4">
+            <div className="app-panel p-4 space-y-4">
+              <h2 className="font-display text-sm font-bold uppercase tracking-tight">Payment Method</h2>
+              {PAYMENT_METHODS.map((m) => (
+                <label key={m.value} className="flex cursor-pointer items-start gap-3">
+                  <input
+                    type="radio"
+                    name="payment"
+                    value={m.value}
+                    checked={paymentMethod === m.value}
+                    onChange={() => setPaymentMethod(m.value)}
+                    className="mt-0.5"
+                    style={{ accentColor: 'var(--brand)' }}
+                  />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>{m.label}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{m.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <button
+              onClick={checkout}
+              disabled={busy}
+              className="btn btn-brand w-full justify-center py-3"
+            >
               {busy ? `Placing ${lines.length} order(s)…` : `Place ${lines.length} order(s) · ${rm(total())}`}
-            </Button>
-            <Button full variant="ghost" onClick={clear} disabled={busy}>Clear cart</Button>
+            </button>
+            <button
+              onClick={clear}
+              disabled={busy}
+              className="btn btn-ghost w-full justify-center py-2"
+            >
+              Clear cart
+            </button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

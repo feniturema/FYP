@@ -13,71 +13,131 @@ export default function SeckillCard({ event }: { event: SeckillEvent }) {
   const [status, setStatus] = useState<string>('');
   const [busy, setBusy] = useState(false);
 
+  const discount = event.originalPrice
+    ? Math.round((1 - event.seckillPrice / event.originalPrice) * 100)
+    : null;
+
   const buy = async () => {
     if (!isAuthed) { navigate('/login'); return; }
-    setBusy(true);
-    setStatus('Submitting…');
+    setBusy(true); setStatus('Submitting…');
     try {
       const res = await seckillApi.buy(event.id);
       if (res.result !== 'ACCEPTED' || !res.trackingToken) {
-        setStatus(res.message);
-        setBusy(false);
-        return;
+        setStatus(res.message); setBusy(false); return;
       }
-      setStatus('Accepted! Confirming your order…');
+      setStatus('Accepted! Confirming order…');
       pollResult(res.trackingToken, 0);
     } catch (err: any) {
-      setStatus(err.response?.data?.message ?? 'Failed.');
-      setBusy(false);
+      setStatus(err.response?.data?.message ?? 'Failed.'); setBusy(false);
     }
   };
 
   const pollResult = (token: string, attempt: number) => {
-    if (attempt > 15) {
-      setStatus('Still processing — check your Orders page shortly.');
-      setBusy(false);
-      return;
-    }
+    if (attempt > 15) { setStatus('Still processing — check Orders.'); setBusy(false); return; }
     seckillApi.result(token).then((r) => {
-      if (r.orderStatus === 'PAID') {
-        setStatus(`🎉 Secured! Order #${r.orderId} confirmed.`);
-        setBusy(false);
-      } else if (r.orderStatus === 'FAILED') {
-        setStatus('Payment failed for your order.');
-        setBusy(false);
-      } else {
-        setTimeout(() => pollResult(token, attempt + 1), 800);
-      }
+      if (r.orderStatus === 'PAID') { setStatus(`Secured! Order #${r.orderId} confirmed.`); setBusy(false); }
+      else if (r.orderStatus === 'FAILED') { setStatus('Payment failed.'); setBusy(false); }
+      else setTimeout(() => pollResult(token, attempt + 1), 800);
     });
   };
 
   const canBuy = cd.phase === 'live' && !busy;
 
   return (
-    <div className="overflow-hidden rounded-xl border border-ukm-200 bg-white shadow-sm">
-      <div className="aspect-video bg-gray-100">
-        {event.imageUrl
-          ? <img src={event.imageUrl} alt={event.productName} className="h-full w-full object-cover" />
-          : <div className="flex h-full items-center justify-center text-gray-300">No image</div>}
+    <div className="app-card flex flex-col">
+      {/* Image */}
+      <div className="relative aspect-video overflow-hidden" style={{ background: 'var(--surface-inset)' }}>
+        {event.imageUrl ? (
+          <img src={event.imageUrl} alt={event.productName}
+            className="product-card-image h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"
+              style={{ color: 'var(--text-faint)' }}>
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+        )}
+
+        {/* Phase badge */}
+        {cd.phase === 'live' && (
+          <span className="absolute left-2 top-2 flex items-center gap-1 app-badge badge-signal">
+            <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+            LIVE
+          </span>
+        )}
+        {cd.phase === 'upcoming' && (
+          <span className="absolute left-2 top-2 app-badge badge-amber">Upcoming</span>
+        )}
+        {cd.phase === 'ended' && (
+          <span className="absolute left-2 top-2 app-badge badge-muted">Ended</span>
+        )}
+
+        {/* Discount badge */}
+        {discount && cd.phase !== 'ended' && (
+          <span
+            className="absolute right-2 top-2 font-display text-sm font-extrabold"
+            style={{ color: 'var(--signal)' }}
+          >
+            -{discount}%
+          </span>
+        )}
       </div>
-      <div className="space-y-2 p-4">
-        <h3 className="font-bold text-gray-800">{event.productName}</h3>
+
+      {/* Body */}
+      <div className="flex flex-1 flex-col p-4 gap-3">
+        <h3 className="font-display text-base font-bold uppercase tracking-tight leading-tight" style={{ color: 'var(--text)' }}>
+          {event.productName}
+        </h3>
+
+        {/* Price */}
         <div className="flex items-baseline gap-2">
-          <span className="text-xl font-extrabold text-ukm-700">{rm(event.seckillPrice)}</span>
+          <span className="font-display text-2xl font-extrabold" style={{ color: 'var(--signal)' }}>
+            {rm(event.seckillPrice)}
+          </span>
           {event.originalPrice && (
-            <span className="text-sm text-gray-400 line-through">{rm(event.originalPrice)}</span>
+            <span className="text-sm line-through" style={{ color: 'var(--text-faint)' }}>
+              {rm(event.originalPrice)}
+            </span>
           )}
         </div>
-        <div className="text-sm">
-          {cd.phase === 'upcoming' && <span className="text-amber-600">Starts in {cd.label}</span>}
-          {cd.phase === 'live' && <span className="font-semibold text-green-600">LIVE · ends in {cd.label}</span>}
-          {cd.phase === 'ended' && <span className="text-gray-400">Ended</span>}
+
+        {/* Countdown */}
+        <div
+          className="app-panel px-3 py-2.5 flex items-center justify-between"
+          style={{ background: 'var(--surface-raised)' }}
+        >
+          <span className="app-mono text-[10px] uppercase tracking-[0.16em]" style={{ color: 'var(--text-faint)' }}>
+            {cd.phase === 'upcoming' ? 'Starts in' : cd.phase === 'live' ? 'Ends in' : 'Sale ended'}
+          </span>
+          {cd.phase !== 'ended' && (
+            <span className="app-mono text-sm font-bold" style={{ color: cd.phase === 'live' ? 'var(--signal)' : 'var(--text)' }}>
+              {cd.label}
+            </span>
+          )}
         </div>
-        <button onClick={buy} disabled={!canBuy}
-          className="w-full rounded-lg bg-ukm-700 py-2 text-sm font-bold text-white hover:bg-ukm-800 disabled:bg-gray-300">
-          {cd.phase === 'upcoming' ? 'Not started' : cd.phase === 'ended' ? 'Ended' : busy ? 'Processing…' : 'SecKill now'}
+
+        {/* Buy button */}
+        <button
+          onClick={buy}
+          disabled={!canBuy}
+          className="btn btn-brand w-full justify-center py-2.5"
+          style={cd.phase === 'ended' ? { background: 'var(--surface-inset)', borderColor: 'var(--hair)', color: 'var(--text-faint)' } : {}}
+        >
+          {cd.phase === 'upcoming' ? 'Not started yet'
+            : cd.phase === 'ended' ? 'Sale ended'
+            : busy ? 'Processing…' : 'SecKill now'}
         </button>
-        {status && <p className="text-xs text-gray-600">{status}</p>}
+
+        {status && (
+          <p
+            className="app-mono text-[11px] text-center"
+            style={{ color: status.includes('Secured') ? '#10b981' : 'var(--text-dim)' }}
+          >
+            {status}
+          </p>
+        )}
       </div>
     </div>
   );

@@ -1,11 +1,12 @@
-import { rm } from '../../utils/format';
 import { Link } from 'react-router-dom';
+import { rm } from '../../utils/format';
 
 interface Props {
   title: string;
   price: number;
   imageUrl?: string;
   badge?: string;
+  badgeVariant?: 'brand' | 'signal' | 'muted';
   subtitle?: string;
   onBuy?: () => void;
   buyLabel?: string;
@@ -15,33 +16,58 @@ interface Props {
 }
 
 export default function ProductCard({
-  title, price, imageUrl, badge, subtitle, onBuy, buyLabel = 'Buy', disabled, href, onAddToCart,
+  title, price, imageUrl, badge, badgeVariant = 'brand', subtitle,
+  onBuy, buyLabel = 'Buy', disabled, href, onAddToCart,
 }: Props) {
   const body = (
     <>
-      <div className="relative aspect-square bg-gray-100">
+      {/* Image with hover overlay */}
+      <div className="product-img-wrap aspect-square" style={{ background: 'var(--surface-inset)' }}>
         {imageUrl ? (
-          <img src={imageUrl} alt={title} className="h-full w-full object-cover" />
+          <img src={imageUrl} alt={title} className="product-card-image h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full items-center justify-center text-gray-300">No image</div>
+          <div className="flex h-full items-center justify-center">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1"
+              style={{ color: 'var(--text-faint)' }}>
+              <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
         )}
+        {/* Hover overlay */}
+        <div className="product-img-overlay">
+          <span className="app-mono text-[10px] uppercase tracking-[0.14em] text-white font-medium">
+            View →
+          </span>
+        </div>
         {badge && (
-          <span className="absolute left-2 top-2 rounded-full bg-ukm-700 px-2 py-0.5 text-xs font-semibold text-white">
+          <span className={`app-badge absolute left-2 top-2 badge-${badgeVariant}`}>
             {badge}
           </span>
         )}
       </div>
-      <div className="p-3">
-        <h3 className="truncate text-sm font-semibold text-gray-800">{title}</h3>
-        {subtitle && <p className="truncate text-xs text-gray-500">{subtitle}</p>}
-        <div className="mt-2 flex items-center justify-between">
-          <span className="font-bold text-ukm-700">{rm(price)}</span>
-          <div className="flex items-center gap-1">
+
+      {/* Info */}
+      <div className="p-3 flex flex-col gap-2">
+        {/* Title + subtitle */}
+        <div>
+          <h3 className="truncate text-sm font-semibold leading-tight" style={{ color: 'var(--text)' }}>{title}</h3>
+          {subtitle && (
+            <p className="mt-0.5 truncate text-[11px]" style={{ color: 'var(--text-faint)' }}>{subtitle}</p>
+          )}
+        </div>
+
+        {/* Price + actions row */}
+        <div className="flex items-center justify-between pt-1" style={{ borderTop: '1px solid var(--hair)' }}>
+          <span className="font-display text-base font-bold" style={{ color: 'var(--brand)' }}>
+            {rm(price)}
+          </span>
+          <div className="flex items-center gap-1.5">
             {onBuy && (
               <button
                 onClick={(e) => { e.preventDefault(); onBuy(); }}
                 disabled={disabled}
-                className="rounded-lg bg-ukm-700 px-3 py-1 text-xs font-semibold text-white hover:bg-ukm-800 disabled:opacity-50"
+                className="btn btn-brand py-1 px-3 text-[10px]"
               >
                 {buyLabel}
               </button>
@@ -50,9 +76,13 @@ export default function ProductCard({
               <button
                 onClick={(e) => { e.preventDefault(); onAddToCart(); }}
                 title="Add to cart"
-                className="rounded-lg border border-ukm-300 px-2 py-1 text-xs text-ukm-700 hover:bg-ukm-50"
+                className="btn btn-outline py-1 px-2"
+                style={{ minWidth: 28 }}
               >
-                🛒
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                  <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                  <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                </svg>
               </button>
             )}
           </div>
@@ -62,7 +92,7 @@ export default function ProductCard({
   );
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:shadow-md">
+    <div className="app-card">
       {href ? <Link to={href} className="block">{body}</Link> : body}
     </div>
   );

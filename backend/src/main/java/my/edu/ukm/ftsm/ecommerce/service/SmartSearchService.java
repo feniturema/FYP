@@ -109,10 +109,12 @@ public class SmartSearchService {
             }
             String content = resp.path("choices").path(0).path("message").path("content").asText("");
             List<Long> order = parseIds(content);
-            if (order.isEmpty()) {
-                return candidates;
+            if (order == null) {
+                return candidates; // unparseable reply -> degrade to keyword order
             }
-
+            // A valid but empty selection means the model found nothing relevant to the query.
+            // Return no results in that case — do NOT fall back to the full candidate set, or an
+            // off-topic query (e.g. "laptop" against merch-only products) would show everything.
             Map<Long, T> byId = candidates.stream()
                     .collect(Collectors.toMap(idOf, Function.identity(), (a, b) -> a, LinkedHashMap::new));
             List<T> ranked = new ArrayList<>();
@@ -122,36 +124,42 @@ public class SmartSearchService {
                     ranked.add(match);
                 }
             }
-            return ranked.isEmpty() ? candidates : ranked;
+            return ranked;
         } catch (Exception e) {
             log.error("[SmartSearch] rerank failed, returning keyword results: {}", e.getMessage());
             return candidates;
         }
     }
 
-    /** Tolerant parse: accepts {"ids":[...]}, a bare [...] array, or fenced JSON. */
+    /**
+     * Tolerant parse of the model's id selection. Accepts {"ids":[...]}, a bare [...] array, or
+     * fenced JSON. Returns {@code null} when the reply cannot be parsed at all (caller degrades to
+     * keyword order); returns an empty list when the model explicitly selected no ids (caller
+     * returns no results).
+     */
     private List<Long> parseIds(String content) {
-        List<Long> ids = new ArrayList<>();
         if (content == null || content.isBlank()) {
-            return ids;
+            return null;
         }
         try {
             String cleaned = content.replaceAll("```json", "").replace("```", "").trim();
             JsonNode root = mapper.readTree(cleaned);
             JsonNode arr = root.isArray() ? root : root.path("ids");
-            if (arr.isArray()) {
-                for (JsonNode n : arr) {
-                    if (n.isNumber()) {
-                        ids.add(n.asLong());
-                    } else if (n.isObject() && n.has("id")) {
-                        ids.add(n.path("id").asLong());
-                    }
+            if (!arr.isArray()) {
+                return null;
+            }
+            List<Long> ids = new ArrayList<>();
+            for (JsonNode n : arr) {
+                if (n.isNumber()) {
+                    ids.add(n.asLong());
+                } else if (n.isObject() && n.has("id")) {
+                    ids.add(n.path("id").asLong());
                 }
             }
+            return ids;
         } catch (Exception ignored) {
-            // unparseable -> empty -> caller falls back to keyword order
+            return null; // unparseable -> caller falls back to keyword order
         }
-        return ids;
     }
 
     private String describeItem(Item i) {

@@ -4,12 +4,14 @@ import jakarta.validation.Valid;
 import my.edu.ukm.ftsm.ecommerce.dto.ItemDtos.*;
 import my.edu.ukm.ftsm.ecommerce.security.AuthPrincipal;
 import my.edu.ukm.ftsm.ecommerce.service.ItemService;
+import my.edu.ukm.ftsm.ecommerce.service.ListingDraftService;
 import my.edu.ukm.ftsm.ecommerce.service.SmartSearchService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/items")
@@ -17,10 +19,13 @@ public class ItemController {
 
     private final ItemService itemService;
     private final SmartSearchService smartSearchService;
+    private final ListingDraftService listingDraftService;
 
-    public ItemController(ItemService itemService, SmartSearchService smartSearchService) {
+    public ItemController(ItemService itemService, SmartSearchService smartSearchService,
+                          ListingDraftService listingDraftService) {
         this.itemService = itemService;
         this.smartSearchService = smartSearchService;
+        this.listingDraftService = listingDraftService;
     }
 
     @GetMapping
@@ -33,6 +38,18 @@ public class ItemController {
     @GetMapping("/smart-search")
     public List<ItemResponse> smartSearch(@RequestParam String q) {
         return smartSearchService.smartSearchItems(q);
+    }
+
+    /** Innovation 2: send uploaded image to GPT-4o, get back a pre-filled listing draft. */
+    @PostMapping("/draft-from-image")
+    public ResponseEntity<ItemDraftResponse> draftFromImage(
+            @AuthenticationPrincipal AuthPrincipal principal,
+            @RequestBody Map<String, String> body) {
+        String imageUrl = body.get("imageUrl");
+        if (imageUrl == null || imageUrl.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(listingDraftService.generateDraft(imageUrl));
     }
 
     @GetMapping("/{id}")

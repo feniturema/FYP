@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../../services/api';
 import { isUkmEmail } from '../../utils/validators';
-import Button from '../../components/common/Button';
-import Input from '../../components/common/Input';
+import { AuthLayout } from './Login';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
@@ -30,34 +29,56 @@ export default function Register() {
   };
 
   return (
-    <AuthCard title="Create your account" subtitle="UKM students & staff only">
+    <AuthLayout
+      title="Create account"
+      subtitle="UKM students & staff only"
+      foot={<>Already have an account? <Link to="/login" className="font-semibold" style={{ color: 'var(--signal)' }}>Login</Link></>}
+    >
       <form onSubmit={submit} className="space-y-4">
-        <Input label="Full name" value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-        <Input label="UKM email" type="email" placeholder="you@siswa.ukm.edu.my"
-          value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-        <Input label="Password" type="password" value={form.password}
-          onChange={(e) => setForm({ ...form, password: e.target.value })} required minLength={6} />
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <Button type="submit" full disabled={loading}>
-          {loading ? 'Creating…' : 'Register'}
-        </Button>
+        <FieldGroup label="Full Name">
+          <input
+            className="app-input"
+            value={form.name}
+            placeholder="Ahmad bin Abdullah"
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
+        </FieldGroup>
+        <FieldGroup label="UKM Email">
+          <input
+            className="app-input"
+            type="email"
+            placeholder="you@siswa.ukm.edu.my"
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            required
+          />
+        </FieldGroup>
+        <FieldGroup label="Password">
+          <input
+            className="app-input"
+            type="password"
+            placeholder="Minimum 6 characters"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            required
+            minLength={6}
+          />
+        </FieldGroup>
+        {error && <p className="text-sm" style={{ color: 'var(--danger)' }}>{error}</p>}
+        <button type="submit" disabled={loading} className="btn btn-brand w-full justify-center py-3">
+          {loading ? 'Creating account…' : 'Register & verify email →'}
+        </button>
       </form>
-      <p className="mt-4 text-center text-sm text-gray-600">
-        Already have an account? <Link to="/login" className="text-ukm-700 hover:underline">Login</Link>
-      </p>
-    </AuthCard>
+    </AuthLayout>
   );
 }
 
-export function AuthCard({ title, subtitle, children }: {
-  title: string; subtitle?: string; children: React.ReactNode;
-}) {
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="mx-auto mt-10 max-w-md rounded-2xl border border-gray-200 bg-white p-8 shadow-sm">
-      <h1 className="text-2xl font-bold text-ukm-700">{title}</h1>
-      {subtitle && <p className="mb-6 mt-1 text-sm text-gray-500">{subtitle}</p>}
+    <label className="block">
+      <span className="app-label mb-1.5 block">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }

@@ -1,7 +1,7 @@
 import api from './axios';
 import type {
   AuthResponse, Item, Product, SeckillEvent, SeckillBuyResponse,
-  SeckillResult, Order, Review, ReviewSummary, ChatReply,
+  SeckillResult, Order, Review, ReviewSummary, ChatReply, ItemDraft,
 } from '../types';
 
 // ---- Auth ----
@@ -27,6 +27,8 @@ export const itemApi = {
   update: (id: number, data: Partial<Item>) =>
     api.put<Item>(`/items/${id}`, data).then((r) => r.data),
   remove: (id: number) => api.delete(`/items/${id}`).then((r) => r.data),
+  draftFromImage: (imageUrl: string) =>
+    api.post<ItemDraft>('/items/draft-from-image', { imageUrl }).then((r) => r.data),
 };
 
 // ---- B2C products ----

@@ -12,6 +12,14 @@ public final class ItemDtos {
 
     private ItemDtos() {}
 
+    public record ItemDraftResponse(
+            String title,
+            String description,
+            String category,
+            String condition,
+            BigDecimal suggestedPrice
+    ) {}
+
     public record CreateItemRequest(
             @NotBlank String title,
             String description,

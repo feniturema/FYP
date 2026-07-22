@@ -64,6 +64,9 @@ app:
     admin-password: ${SEED_ADMIN_PASSWORD:Admin@123}
   upload:
     dir: ${UPLOAD_DIR:uploads}   # relative to working dir; Docker maps this to a volume
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+    vision-model: ${OPENAI_VISION_MODEL:gpt-4o}
 
 management:
   endpoints:
