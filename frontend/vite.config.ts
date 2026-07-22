@@ -70,6 +70,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // Allow tunnel domains (Cloudflare/ngrok) so the app can be demoed over a
+    // public URL. `true` accepts any Host header — fine for a temporary demo tunnel.
+    allowedHosts: true,
     proxy: {
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET || 'http://localhost:8080',

@@ -5,6 +5,36 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.6.2] — 2026-07-22 — VPS deployment: AI keys, security hardening, JDK 21
+
+Makes `docker compose up -d --build` on a fresh 2–4 GB VPS "just work" — with all
+AI features (chat / semantic search / vision listing) live, and without exposing
+the database to the public internet.
+
+### Fixed
+- **docker-compose was silently disabling all AI features**: only the legacy
+  `GEMINI_API_KEY` was passed to the backend container. Now correctly passes
+  `LLM_API_KEY`/`LLM_BASE_URL`/`LLM_MODEL` (DeepSeek — chat + semantic search) and
+  `OPENAI_API_KEY`/`OPENAI_VISION_MODEL` (GPT-4o — vision listing draft).
+- **Backend Dockerfile used JDK 17 while pom/tests require JDK 21** (v0.6.1 note)
+  → bumped `maven:3.9-eclipse-temurin-21` + `eclipse-temurin:21-jre`.
+
+### Changed (security)
+- **MySQL 3306 and Redis 6379 no longer exposed to host** — removed their `ports:`
+  mappings; services are only reachable inside the compose network. Prevents
+  brute-force / open-Redis attacks on a public VPS.
+
+### Changed (footprint — fits 2GB VPS)
+- MySQL tuned: `--innodb-buffer-pool-size=128M --performance-schema=OFF` (~500MB saved).
+- Backend JVM: `-XX:MaxRAMPercentage=50.0` so it stays within container limits.
+- `MOCK_FPX_SUCCESS_RATE=100` passed through for demo-safe checkout.
+
+### Added
+- `docs/DEPLOY_VPS.md` — 10-minute deploy speedrun for Ubuntu + Docker VPS:
+  ports to open, `.env` template, smoke-test checklist, ops commands, FAQ.
+
+---
+
 ## [v0.6.1] — 2026-07-22 — Pre-demo hardening (second-pass review)
 
 Second-pass review fixes to make the live demo robust. Backend tests pass on Java 21;

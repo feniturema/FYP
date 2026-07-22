@@ -11,10 +11,14 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: ${DB_NAME:-ftsm_ecommerce}
-    ports:
-      - "3306:3306"
+    # No `ports:` — MySQL is only reachable inside the compose network.
+    # Exposing 3306 publicly invites brute-force attacks.
     volumes:
       - mysql_data:/var/lib/mysql
+    # Tuned for a 2–4GB VPS: shrink InnoDB buffer + disable perf schema to save ~500MB.
+    command: >
+      --innodb-buffer-pool-size=128M
+      --performance-schema=OFF
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-root}"]
       interval: 10s
@@ -24,8 +28,7 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    # No `ports:` — Redis only reachable inside the compose network.
     volumes:
       - redis_data:/data
     healthcheck:
@@ -58,8 +61,15 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@ftsm.ukm.edu.my}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-1.5-flash}
+      # AI features — chat assistant + semantic search (DeepSeek, OpenAI-compat)
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-deepseek-v4-flash}
+      # Vision listing draft — student uploads photo, GPT-4o pre-fills the form
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_VISION_MODEL: ${OPENAI_VISION_MODEL:-gpt-4o}
+      # Demo-safe payment: FPX always succeeds unless explicitly lowered
+      MOCK_FPX_SUCCESS_RATE: ${MOCK_FPX_SUCCESS_RATE:-100}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@ukm.edu.my}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin@123}
       UPLOAD_DIR: /app/uploads
