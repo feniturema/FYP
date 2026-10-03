@@ -10,9 +10,12 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.2.0 P1/P2 feature completion | Codex (GPT-5) | 2026-05-31 | Admin SecKill management, order detail/pay-later, OTP resend docs/UI/API, reviews, detail pages, tests, changelog updates, and git initialization. |
 | v0.3.0 P3 cart checkout + image upload | Claude Code (Sonnet 4.6) | 2026-06-01 | `/cart`, `POST /api/upload`, `ImageUpload` widget. |
 | v0.4.0–v0.4.2 AI chatbot live (DeepSeek) | Claude Code (Sonnet 4.6) | 2026-06-01 | OpenAI-compatible client, default model `deepseek-v4-flash`. |
-| v0.4.3 docs aligned with code + upgrade plan | Claude Code | 2026-10-03 | README/HANDOFF/compose corrected; `docs/UPGRADE_PLAN.md` added. |
+| v0.4.3 docs aligned with code + compose `LLM_*` fix + upgrade plan | Claude Code | 2026-10-03 | Docs **and** a deployment-config fix (`docker-compose.yml`); `docs/UPGRADE_PLAN.md` added. |
+| v0.4.4 implementation spec | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md` added (docs only). |
+| v0.4.5 spec made agent-executable | Claude Code | 2026-10-03 | Repo facts verified, P0 execution package, pinned versions (docs only). |
 
-See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
+The application code is unchanged since v0.4.2 (commit `5f5fae4`), which is the pre-upgrade
+baseline (tag `v0.4.2-baseline`, created by upgrade phase P0). See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
 handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
 (Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s) and
 `docs/CHANGE_SPEC.md` for its file-by-file implementation spec.

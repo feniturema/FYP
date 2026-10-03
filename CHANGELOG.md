@@ -5,6 +5,54 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.4.5] — 2026-10-03 — Upgrade spec made agent-executable
+
+Authored by Claude Code. Docs only (`docs/`, `README.md`, `HANDOFF.md`, `CHANGELOG.md`).
+
+### Changed
+- `docs/CHANGE_SPEC.md`:
+  - §0 now records the verified repo facts: `main` = `5f5fae4` = v0.4.2; v0.4.3–v0.4.5 live only
+    on the docs branch; no tags; no Maven Wrapper.
+  - Fixed the baseline naming: tag `v0.4.2-baseline` → `5f5fae4`. Earlier docs wrongly called it
+    v0.4.0.
+  - P0 rewritten as a self-contained execution package: preconditions, Docker-less fallback,
+    Wrapper with sha256, reproducible schema export, fresh/legacy schema-equivalence check,
+    k6 scripts, smoke vs formal runs, file list, a 17-item acceptance matrix, stop rules, and a
+    ready-to-use prompt.
+  - Phase dependencies fixed: P6a now depends on P2 and P4a; P5b is gated on human labelling and
+    the embedding decision; P7 is optional.
+  - Maven working directory defined per phase (`cd backend && ./mvnw` until P4a).
+  - All versions pinned or attributed to a BOM, including Boot 3.5.16, Spring AI 1.1.8,
+    ShedLock 6.10.0, OTel agent 2.32.0 (sha256), otel-lgtm 0.35.0, k6 2.3.0 and Testcontainers
+    1.21.4.
+  - Later phases clarified:
+    - P2: `SECKILL_PAYMENT=FAKE_WALLET`; when the reconciler sets `reconciled`.
+    - P4b: no-key startup, MCP-down startup, SecurityContext saved for ASYNC dispatch (no broad
+      `permitAll`) with tests, read-only DB user script without SQL injection, tool recorder
+      covers local tools.
+    - P5a: seller mapping and idempotent import.
+    - P5b: no-embedding startup test.
+    - P6a: correct Redis/Kafka Testcontainers classes.
+  - k6 steady-state QPS is now computed as `count / steady seconds` (k6's exported sub-metric
+    rate is averaged over the whole test, verified on k6 2.3.0).
+- `docs/UPGRADE_PLAN.md`: same version and baseline fixes; phase table and §12 now defer to
+  `CHANGE_SPEC.md` §0.
+- `README.md`, `HANDOFF.md`: traceability rows for v0.4.3–v0.4.5; baseline commit/tag; next step.
+- `CHANGELOG.md`: the v0.4.3 entry now states that it included a compose change.
+
+### Verified — 2026-10-03
+- `mvn -B verify` on `5f5fae4` with JDK 21.0.11 / Maven 3.9.11: 5 tests, 0 failures.
+- Maven Wrapper generation command (plugin 3.3.4, Maven 3.9.11 + sha256) works (tried in a
+  scratch directory, not committed).
+- k6 2.3.0: `k6/crypto` HS256 signing matches Python; `count==N` thresholds exit 99 on
+  mismatch; `handleSummary` output format.
+
+### Not executed
+- No P0 step was run against MySQL (no Docker daemon in the authoring environment). Schema export,
+  Flyway, e2e and k6 runs against the backend are all left to P0.
+
+---
+
 ## [v0.4.4] — 2026-10-03 — Implementation spec for the upgrade
 
 Authored by Claude Code. Docs only.
@@ -23,7 +71,8 @@ Authored by Claude Code. Docs only.
 
 ## [v0.4.3] — 2026-10-03 — Docs aligned with code + upgrade plan
 
-Authored by Claude Code. No application logic changed.
+Authored by Claude Code. No application (Java/TypeScript) logic changed, but this is **not
+docs-only**: it includes a deployment-config fix in `docker-compose.yml`.
 
 ### Fixed
 - `docker-compose.yml`: backend now receives `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`

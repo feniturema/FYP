@@ -10,6 +10,7 @@
 | P3: cart checkout + image upload | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.3.0 |
 | AI chatbot activated (DeepSeek OpenAI-compatible) | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.4.0–v0.4.2 |
 | Docs aligned with code; compose `LLM_*` fix; upgrade plan | Claude Code | 2026-10-03 | `CHANGELOG.md` v0.4.3; `docs/UPGRADE_PLAN.md` |
+| Upgrade implementation spec (v0.4.4) and agent-executable revision (v0.4.5) | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -267,7 +268,9 @@ Write at least a happy-path test where noted.
 - ✅ AI chatbot ACTIVE: DeepSeek OpenAI-compatible integration; `ChatService` product-context aware; `ChatWidget` live. (Claude Code v0.4.0)
 - ✅ All builds green (backend + frontend) and `scripts/e2e_test.py` 8/8 after v0.4.0.
 - ⬜ Remaining: real server deployment, HTTPS, real SMTP verification end-to-end.
-- ⬜ Next: v0.5+ upgrade per `docs/UPGRADE_PLAN.md` (start with its P0: baseline tag + k6 baseline).
+- ⬜ Next: v0.5+ upgrade per `docs/CHANGE_SPEC.md`. Prerequisite: the docs branch (v0.4.3–v0.4.5) is merged
+  into `main`. Then run P0 with the prompt in `docs/CHANGE_SPEC.md` 附 B (baseline tag `v0.4.2-baseline` →
+  `5f5fae4`, Maven Wrapper, Flyway V1, k6 smoke).
 
 ---
 

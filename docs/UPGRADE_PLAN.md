@@ -1,6 +1,6 @@
 # FTSM 电商平台整体升级方案
 
-2026-10-03 · 基于 `FTSM-upgrade-spec.md`，并对照当前代码（`main` @ `5f5fae4`，v0.4.0）
+2026-10-03 · 基于 `FTSM-upgrade-spec.md`，对照的代码是 `main` @ `5f5fae4`（v0.4.2，即升级前基线，tag `v0.4.2-baseline`）
 
 > 本文讲“改什么、为什么”。逐文件的实现规格（给 agent 执行用）见 [`CHANGE_SPEC.md`](CHANGE_SPEC.md)；两者冲突时以 `CHANGE_SPEC.md` 为准。
 
@@ -10,18 +10,20 @@
 
 规格文档的方向没问题，但它对“现状”的几个假设和代码对不上。照抄会出三类问题：做了没必要的工作，漏掉真正要改的地方，以及简历数字没法自圆其说。本方案把规格落到这个仓库的具体文件上，并调整了顺序：
 
-| 阶段 | 内容 | 对应规格 | 前置阶段 |
-| --- | --- | --- | --- |
-| **P0** | 打基线 tag、引入 Flyway、mvnw、**先写 k6 并测旧版本基线**（文档对齐与 compose 修复已在 v0.4.3 完成） | 新增（规格里的“改造前先跑基线”提前到这里） | — |
-| P1 | Java 21 + Spring Boot 3.5 + 虚拟线程 | 步骤 1 | P0 |
-| P2 | Outbox + Kafka 取代 Redis Stream，幂等消费 | 步骤 2 | P1 |
-| P3 | k6 正式压测（三种配置对比）+ 争抢测试 | 步骤 3 | P2（基线来自 P0） |
-| P4 | Spring AI + MCP server + SSE + Resilience4j | 步骤 4 | P1 |
-| P5 | 扩充商品目录、FULLTEXT 基线、Redis 向量、RRF、LLM 重排、评测集 | 步骤 5 | P4（评测集须先人工标注） |
-| P6 | Testcontainers、GitHub Actions、K8s、OpenTelemetry | 步骤 6 | P2、P4 |
-| P7（可选） | GPT-4o Vision 上架助手（简历第四条提到了，但项目里没有） | 简历第四条 | P1 |
+| 阶段 | 内容 | 对应规格 |
+| --- | --- | --- |
+| **P0** | 基线 tag、Maven Wrapper、Flyway V1、k6 脚本与冒烟基线 | 新增（规格里的“改造前先跑基线”提前到这里） |
+| P1 | Java 21 + Spring Boot 3.5.16 + 虚拟线程 | 步骤 1 |
+| P2 | Outbox + Kafka 取代 Redis Stream，幂等消费 | 步骤 2 |
+| P3 | sync/async 对照 + 正式压测（人工） | 步骤 3 |
+| P4a / P4b | 拆 Maven 多模块 / Spring AI + MCP server + SSE + Resilience4j | 步骤 4 |
+| P5a / P5b | 演示目录、FULLTEXT、评测框架 / Redis 向量、RRF、LLM 重排 | 步骤 5 |
+| P6a / P6b | Testcontainers + CI / ShedLock、K8s、OpenTelemetry | 步骤 6 |
+| P7（可选） | GPT-4o Vision 上架助手（简历第四条提到了，但项目里没有） | 简历第四条 |
 
-P0–P3 是底线（简历第一条），P6 里的 Testcontainers 和 CI 次之。按 agent 执行时的拆分方式、每个阶段的验收门槛和必须由人完成的部分，见 §12。
+各阶段的前置依赖、版本号、Maven 命令的工作目录和固定的依赖版本，统一以 [`CHANGE_SPEC.md`](CHANGE_SPEC.md) §0.3–§0.5 为准，本文不再重复。P0 的唯一前置条件：包含本文的文档分支（v0.4.3–v0.4.5）已经合并到 `main`。
+
+P0–P3 是底线（简历第一条），P6a（Testcontainers + CI）次之。按 agent 执行的方式和必须由人完成的部分，见 §12。
 
 ---
 
@@ -43,15 +45,15 @@ P0–P3 是底线（简历第一条），P6 里的 Testcontainers 和 CI 次之�
 | D10 | 目录有几百个商品 | `DataSeeder` 只种了 **3 个**商品 | P5 必须先造 300–500 条多语言商品数据 |
 | D11 | 原有 32 个测试用例 | 实际 **5 个 `@Test`**（3 个测试类）+ `scripts/e2e_test.py` 8 项检查 | 简历第四条的用例数只能用 P6 之后的实测数字 |
 | D12 | 有 GPT-4o Vision 上架流程 | **不存在**（`UploadController` 只存文件） | 要么做 P7，要么从简历删掉这半句 |
-| D13 | `./mvnw` | 仓库没有 Maven Wrapper；pom 在 `backend/` 子目录 | P0 补 wrapper，CI 设 `working-directory` |
+| D13 | `./mvnw` | 仓库没有 Maven Wrapper；pom 在 `backend/` 子目录 | P0 在 `backend/` 补 Wrapper；P4a 移到根目录；CI（P6a）在 P4a 之后，使用根目录的 Wrapper |
 | D14 | Boot 3.3 → 3.5 | 确认是 3.3.5、Java 17、Dockerfile 用 temurin-17 | P1 一并改 Dockerfile |
 
 ### 顺带发现的现存问题（P0 修，或在对应阶段修）
 
 | # | 问题 | 位置 | 后果 | 处理阶段 |
 | --- | --- | --- | --- | --- |
-| B1 | compose 给后端传的是 `GEMINI_API_KEY / GEMINI_MODEL`，而代码读 `LLM_API_KEY / LLM_BASE_URL / LLM_MODEL` | `docker-compose.yml` | **Docker 部署下聊天机器人永远是“未配置”** | ✅ 已在 v0.4.3 修复 |
-| B2 | README 技术栈仍写 Gemini、Java 17 | `README.md` | 文档失真 | ✅ 已在 v0.4.3 修复（README / HANDOFF 已与代码对齐） |
+| B1 | compose 给后端传的是 `GEMINI_API_KEY / GEMINI_MODEL`，而代码读 `LLM_API_KEY / LLM_BASE_URL / LLM_MODEL` | `docker-compose.yml` | **Docker 部署下聊天机器人永远是“未配置”** | ✅ v0.4.3 修复（文档分支，合并到 main 后生效） |
+| B2 | README 技术栈仍写 Gemini、Java 17 | `README.md` | 文档失真 | ✅ v0.4.3 修复（文档分支，合并到 main 后生效） |
 | B3 | `reconcileEvents()` 在每个实例上都跑；两个副本可能同时读到 `stockWarmed=false` 并 `SET` 库存 | `SeckillService.reconcileEvents` | 单实例没事；**上 K8s 多副本后，活动开始后的二次预热会把库存重置为满额 → 超卖** | P2（预热改用 `SET NX`）+ P6（ShedLock） |
 | B4 | 普通 B2C 下单是“读库存 → 减一 → save”，无锁 | `OrderService.buildProductOrder` | 并发下单普通商品会超卖；C2C 同一件二手物品也可能被卖两次 | P2 顺手改成条件 UPDATE |
 | B5 | `ddl-auto: update`，没有迁移工具 | `application.yml` | 唯一键、新表、CHECK 约束无法可靠落地，也没法在 Testcontainers 里复现 | P0 引入 Flyway |
@@ -109,22 +111,20 @@ FYP/
 
 ## P0 · 准备工作
 
-目的：在动任何东西之前，把“旧版本”的数字定下来，并扫掉会干扰后续工作的 bug。
+目的：在动任何东西之前，把旧版本冻结下来以便对比，并补齐构建和迁移工具。逐步命令、验收矩阵和失败规则见 `CHANGE_SPEC.md` §P0；下面只说明设计上的取舍。
 
-1. **打基线 tag**：`git tag v0.4.0-baseline 5f5fae4 && git push origin v0.4.0-baseline`。之后任何时候都能 checkout 回来重测。
-2. ~~**修 B1/B2**~~：已在 v0.4.3 完成（compose 改传 `LLM_*`，README/HANDOFF 已对齐）。P1 升级 Java 21 时记得同步改 README 的 JDK 要求。
-3. **Maven Wrapper**：`mvn wrapper:wrapper -Dmaven=3.9.11`（先放在 `backend/`，P4 拆多模块时移到根目录）。
-4. **Flyway**：
-   - 加 `flyway-core` + `flyway-mysql`（Boot 3.x 没有 flyway starter，版本由 Boot 管理）。
-   - 用当前 schema 导出 `V1__baseline.sql`（`mysqldump --no-data`），配置 `spring.flyway.baseline-on-migrate=true`，`ddl-auto` 改成 `validate`。
-   - 后续每个阶段的表结构变更都写成 `V2__...sql`、`V3__...sql`。
-   - H2 profile 保留给本地快速启动，但 Flyway 脚本以 MySQL 方言为准；测试改用 Testcontainers（P6）。
-5. **k6 脚本 + 基线测量**（见 P3 的脚本，P0 先写好）：
-   - 认证：**不加 `X-Test-User` 后门**。`JwtAuthFilter` 只校验签名、不查库，所以 k6 可以用测试环境的 `JWT_SECRET` 直接在脚本里签 HS256 token（`k6/crypto` 的 `hmac` + `k6/encoding` 的 `b64encode(..., 'rawurl')`），或用 `loadtest/gen_tokens.py` 预生成一个 token 池。这样压测走的是真实的鉴权链路，生产配置里也不存在可被利用的测试头。
-   - 用户 ID 必须是数字（`AuthPrincipal.userId` 是 `Long`），用 `__VU * 1_000_000 + __ITER`。
-   - 在 `v0.4.0-baseline` 上跑吞吐场景和争抢场景，结果存 `loadtest/results/baseline-redis-stream/`。
-
-验收：`docker compose up` 后聊天机器人可用；`mvnw verify` 通过；基线结果文件已提交。
+1. **基线 tag**：`v0.4.2-baseline` → `5f5fae4`。tag 冻结了代码，所以正式基线可以在 P3 之前的任何时间测。
+2. **Maven Wrapper**：Maven 3.9.11，带 sha256 校验，先放在 `backend/`，P4a 时移到根目录。
+3. **Flyway**：
+   - `flyway-core` + `flyway-mysql`（Boot 3.x 没有 Flyway starter，版本由 Boot 管理）。
+   - `V1__baseline.sql` 必须由脚本从“基线 jar + 真实 MySQL 8.0.46”导出，不能手写：Hibernate 6 在 MySQL 上会建 `enum` 列，手写很容易对不上。
+   - 空库会执行 V1；已有的旧库只做基线化。验收要求两者的 schema 完全一致（diff 为空）。
+   - H2 profile 保留，但关闭 Flyway。
+4. **k6**：
+   - **不加 `X-Test-User` 后门**。`JwtAuthFilter` 只校验签名、不查库，所以 k6 用测试环境的 `JWT_SECRET` 在脚本里签 HS256 token；已在 k6 2.3.0 上验证与 Python 的签名结果一致。压测走的是真实的鉴权链路。
+   - 用户 ID 取 `exec.scenario.iterationInTest` 加偏移量，保证全局唯一，并且是数字（`AuthPrincipal.userId` 是 `Long`）。
+   - 稳定阶段的 QPS 必须用 `count ÷ 稳定阶段时长` 计算。k6 导出的子指标 `rate` 是除以整个测试时长的（已验证），直接用会低估。
+   - agent 只跑冒烟规模；正式数字由人在固定机器上测量。
 
 ---
 
@@ -134,7 +134,7 @@ FYP/
 
 | 文件 | 改什么 |
 | --- | --- |
-| `backend/pom.xml` | parent → `3.5.x`；`java.version` → `21`；Lombok 升到当前最新 1.18.x |
+| `backend/pom.xml` | parent → `3.5.16`；`java.version` → `21`；去掉 Lombok 版本覆盖（改用 Boot 管理的 1.18.46）；springdoc → 2.8.17 |
 | `backend/Dockerfile` | `maven:3.9-eclipse-temurin-21`、`eclipse-temurin:21-jre`；`ENTRYPOINT` 加 `-XX:MaxRAMPercentage=75` |
 | `application.yml` | `spring.threads.virtual.enabled: true`；`spring.datasource.hikari.maximum-pool-size: ${DB_POOL_SIZE:20}`（之后作为压测参数） |
 | README / HANDOFF | JDK 要求改为 21 |
@@ -144,9 +144,9 @@ FYP/
 - 开虚拟线程后，`@Scheduled` 也跑在虚拟线程上，`reconcileEvents` 和后面的 `OutboxRelay` 不受影响。
 - 用 `-Djdk.tracePinnedThreads=short` 跑一次压测，检查 pinning。mysql-connector-j 9.x 已把 `synchronized` 换成 `ReentrantLock`，Boot 3.5 管理的版本就够新。
 - **可选**：如果想彻底消除 `synchronized` pinning，可以上 JDK 25 LTS（JEP 491），但要确认 Lombok ≥ 1.18.40；简历写 “Java 21+” 也成立。默认按规格用 21，当前容器里就是 21.0.11。
-- **版本核实**：Boot 3.5 的开源支持期可能已经结束，动手当天看一下 spring.io 的支持表。如果 3.5 已经停止维护，可以直接上 Boot 4 + Spring AI 2.x；P4 的代码基本不变，只是包名和 starter 名可能有差异。
+- **版本**：3.5.16 是撰写时 3.5 线的最新版本。如果执行时 3.5 已经停止开源支持，由人决定是否改走 Boot 4（届时 Spring AI 要换成 2.x，ShedLock 要换成 7.x）。
 
-验收：`mvnw verify` 绿；e2e_test.py 8/8；`/actuator/health` UP。
+验收：`cd backend && ./mvnw -B verify` 绿；e2e_test.py 8/8；`/actuator/health` UP。
 
 ---
 
@@ -317,7 +317,7 @@ public void persist(SeckillOrderMessage m) {
 
 ```yaml
   kafka:
-    image: apache/kafka:3.9.1         # KRaft 单节点；动手当天确认最新稳定版
+    image: apache/kafka:3.9.2         # KRaft 单节点；与 Boot 3.5.16 管理的 kafka-clients 一致
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -327,7 +327,7 @@ public void persist(SeckillOrderMessage m) {
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
   redis:
-    image: redis:8                    # P5 的向量检索需要，现在一起换
+    image: redis:8.10.2               # P5 的向量检索需要，现在一起换
     command: ["redis-server", "--appendonly", "yes"]   # 库存和买家集合需要持久化
 ```
 
@@ -370,7 +370,7 @@ D1 已经说明，旧版本是 Redis Stream 异步落单，而不是规格以为
 
 | 配置 | 怎么得到 | 意义 |
 | --- | --- | --- |
-| A. 旧版 | `v0.4.0-baseline` tag（Java 17、Redis Stream、热路径查 MySQL） | 真实基线 |
+| A. 旧版 | `v0.4.2-baseline` tag（Java 17、Redis Stream、热路径查 MySQL；拒绝时返回 200，压测时设 `REJECT_STATUS=200`） | 真实基线 |
 | B. 同步落单 | 新代码加 `app.seckill.mode=sync`（仅 test profile）：Lua 成功后直接调用 `SeckillOrderWriter.persist` | 规格里“同步基线”的含义；用来算 Zx |
 | C. 新版 | Outbox + Kafka + 虚拟线程 | 简历数字 |
 
@@ -384,12 +384,12 @@ D1 已经说明，旧版本是 Redis Stream 异步落单，而不是规格以为
 
 ---
 
-## P4 · Agent 助手：Spring AI + MCP + SSE + Resilience4j
+## P4 · Agent 助手：Spring AI + MCP + SSE + Resilience4j（CHANGE_SPEC 中拆为 P4a / P4b）
 
 ### 4.1 拆模块
 
 1. 根目录新建聚合 `pom.xml`，`<modules>catalog-core, backend, mcp-server</modules>`，导入 `spring-ai-bom`。
-2. `catalog-core`：把 `Product`、`Item` 实体和仓库移进来（包名不变，避免改动 import），新增 `CatalogSearchService`（P4 先只做 FULLTEXT 检索，P5 再加向量和 RRF）。
+2. `catalog-core`：把 `Product`、`Item`、`SeckillEvent`、`Review` 的实体和仓库以及 `RedisKeys` 移进来（包名不变，避免改动 import）。P4b 新增 `CatalogSearchService`，先沿用现有的 LIKE 检索；P5a 换成 FULLTEXT，P5b 再加向量和 RRF。
 3. `backend` 依赖 `catalog-core`，`@EntityScan` / `@EnableJpaRepositories` 覆盖两个包。
 
 ### 4.2 MCP server（`mcp-server/`）
@@ -425,7 +425,7 @@ List<OrderView> myOrders(ToolContext ctx) {
 ### 4.4 助手服务（backend 内，替换 `ChatService`）
 
 - 依赖：`spring-ai-starter-mcp-client`、`spring-ai-starter-model-deepseek`、`resilience4j-spring-boot3`、`resilience4j-reactor`。
-- 配置：`spring.ai.mcp.client.streamable-http.connections.shop.url=http://mcp-server:8081`（具体 key 以文档为准）；`spring.ai.deepseek.api-key=${LLM_API_KEY}`、`chat.options.model=${LLM_MODEL}`。**先确认所选 DeepSeek 模型支持 tool calling**（历史上 reasoner 类模型不支持）。
+- MCP 客户端不用 Spring AI 的自动配置（它在启动时连接 MCP server，连不上会导致 backend 启动失败），改为自己实现的 `McpToolsProvider`：延迟连接，失败时返回空工具集，并定时重试。细节见 `CHANGE_SPEC.md` §P4b。`spring.ai.deepseek.api-key=${LLM_API_KEY}`、`chat.options.model=${LLM_MODEL}`。**先确认所选 DeepSeek 模型支持 tool calling**（历史上 reasoner 类模型不支持）。
 - 会话记忆：`MessageWindowChatMemory`（最近 10 条），以 `conversationId = userId + 前端生成的会话 UUID` 为键。
 
 ```java
@@ -452,7 +452,8 @@ Flux<String> fallback(Long u, String c, String q, Throwable t) { return Flux.jus
 
 - 保留旧的 `POST /api/chat`（非流式），内部改成 `stream().collectList()`，避免一次改动打断前端。
 - **为什么用 POST 而不是规格里的 GET + EventSource**：`EventSource` 不能设置 `Authorization` 头，而本项目的 JWT 放在请求头里；把 token 放进 URL 又会被写进访问日志。所以前端用 `fetch` + `ReadableStream` 解析 SSE（或用 `@microsoft/fetch-event-source`）。
-- Spring Security：MVC 返回 `Flux` 会走异步分派，需要 `.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()`，并设置 `spring.mvc.async.request-timeout=60s`。
+- Spring Security：MVC 返回 `Flux` 时会再做一次 ASYNC 分派。现在的 `JwtAuthFilter` 没有把认证信息存进 `SecurityContextRepository`，所以 ASYNC 分派会被拒（这就是 v0.4.0 把聊天接口改成阻塞调用的原因）。修法：`JwtAuthFilter` 把 context 存进 `RequestAttributeSecurityContextRepository`，ASYNC 分派仍然要经过鉴权，**不做** `permitAll` 式的放行；并补上未认证请求被拒的测试。设置 `spring.mvc.async.request-timeout=60s`。
+- 没有 key 时：`LLM_PROVIDER` 默认为 `none`，此时不创建 ChatModel，助手返回 “not configured”，应用照常启动。
 - Nginx（修 B7）：
 
 ```nginx
@@ -480,7 +481,7 @@ location /api/assistant/stream {
 
 ---
 
-## P5 · 混合检索与评测
+## P5 · 混合检索与评测（CHANGE_SPEC 中拆为 P5a / 人工标注 / P5b）
 
 ### 5.1 先造数据（D10）
 
@@ -533,11 +534,11 @@ List<Hit> search(String q, Filters f, Mode mode) {
 
 ---
 
-## P6 · 测试、CI、Kubernetes、可观测性
+## P6 · 测试、CI、Kubernetes、可观测性（CHANGE_SPEC 中拆为 P6a / P6b）
 
 ### 6.1 Testcontainers
 
-依赖：`spring-boot-testcontainers`、`org.testcontainers:mysql`、`org.testcontainers:kafka`、`com.redis:testcontainers-redis`（或 `GenericContainer("redis:8")` + `@ServiceConnection(name = "redis")`）。
+依赖（版本都由 Boot 3.5.16 管理）：`spring-boot-testcontainers`、`org.testcontainers:mysql` / `kafka` / `junit-jupiter`（1.21.4；Kafka 用 `org.testcontainers.kafka.KafkaContainer` + `apache/kafka:3.9.2`）、`com.redis:testcontainers-redis`（2.2.4，`com.redis.testcontainers.RedisContainer` + `redis:8.10.2`）。
 
 `TestcontainersConfig`：三个容器都声明成 `@Bean @ServiceConnection`。Flyway 在 MySQL 容器上自动执行迁移，这也是 P0 引入 Flyway 的原因之一。
 
@@ -561,7 +562,7 @@ on: [push, pull_request]
 permissions: { contents: read, packages: write }
 jobs:
   backend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -571,7 +572,7 @@ jobs:
         if: always()
         with: { name: test-reports, path: '**/target/*-reports/' }
   frontend:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     defaults: { run: { working-directory: frontend } }
     steps:
       - uses: actions/checkout@v4
@@ -581,7 +582,7 @@ jobs:
   images:
     needs: [backend, frontend]
     if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy: { matrix: { svc: [backend, mcp-server, frontend] } }
     steps:
       - uses: actions/checkout@v4
@@ -608,12 +609,12 @@ k8s/
 ├── backend.yaml                # Deployment(2) + Service + HPA；requests.cpu 500m
 ├── mcp-server.yaml
 ├── frontend.yaml               # nginx，含 SSE 配置
-└── observability.yaml          # grafana/otel-lgtm
+└── observability.yaml          # grafana/otel-lgtm:0.35.0
 ```
 
 上 K8s 之前要先解决的多副本问题：
 
-- **B3**：`reconcileEvents` 加 ShedLock（`shedlock-provider-jdbc-template`，加一张 `shedlock` 表），只让一个副本执行。P2 的 `SET NX` 是第二道保险。
+- **B3**：`reconcileEvents` 加 ShedLock 6.10.0（`shedlock-provider-jdbc-template`，加一张 `shedlock` 表），只让一个副本执行。7.x 面向 Spring 7，不能用。P2 的 `SET NX` 是第二道保险。
 - `OutboxRelay`：`SKIP LOCKED` 本身就支持多副本，不需要 ShedLock。
 - **B6**：上传文件。kind 环境下用一个 `ReadWriteMany` 的 hostPath PVC 应急，或者部署一个 MinIO，`UploadController` 改为写 S3。简历里没提这一点，可以选最省事的做法，但必须处理，否则多副本时图片会随机 404。
 - 探针：`management.endpoint.health.probes.enabled=true`，liveness 和 readiness 分别指向对应的 actuator 路径。
@@ -621,7 +622,7 @@ k8s/
 
 ### 6.4 OpenTelemetry / Prometheus / Grafana
 
-- 在 Dockerfile 里下载 `opentelemetry-javaagent.jar`（固定版本号），`JAVA_TOOL_OPTIONS=-javaagent:/otel/agent.jar`；环境变量 `OTEL_SERVICE_NAME`、`OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318`。
+- 在 Dockerfile 里用 `ADD --checksum=sha256:...` 下载 `opentelemetry-javaagent.jar` 2.32.0（checksum 见 `CHANGE_SPEC.md` §0.5），`JAVA_TOOL_OPTIONS=-javaagent:/otel/agent.jar`；环境变量 `OTEL_SERVICE_NAME`、`OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318`。
 - `micrometer-registry-prometheus`，暴露 `/actuator/prometheus`，由 LGTM 里的采集器抓取。
 - 自定义指标：
   - `seckill_outbox_backlog`（Gauge，每 5 秒执行一次 `SELECT COUNT(*) WHERE status=0`）
@@ -648,7 +649,7 @@ k8s/
 | # | 问题 | 选项 | 我的建议 |
 | --- | --- | --- | --- |
 | 1 | Embedding 提供方（DeepSeek 没有 embedding 接口） | a) OpenAI `text-embedding-3-small`：600 个商品回填的费用几乎为零，需要新 key；b) Ollama 本地 `bge-m3`：免费，跨语言（中/英/马来）效果好，但 compose 和 K8s 要多跑一个容器，CPU 推理较慢；c) Spring AI ONNX 默认的 MiniLM：只支持英文，**跨语言那一类会很差** | 有 OpenAI key 就选 a（顺便支撑 P7），没有就选 b。不要选 c |
-| 2 | Spring Boot 版本 | 3.5.x + Spring AI 1.1.x（按规格）或 4.x + Spring AI 2.x | 动手当天确认 3.5 是否仍在开源支持期内；还在就按规格走 |
+| 2 | Spring Boot 版本 | 3.5.16 + Spring AI 1.1.8（按规格）或 4.x + Spring AI 2.x | 默认 3.5.16；只有在 3.5 已停止支持时才需要决定 |
 | 3 | 简历第四条的 GPT-4o Vision | 做 P7 / 删掉 | 做，成本低，演示效果好 |
 | 4 | 订单工具放在哪 | 方案一：本地 `@Tool` / 方案二：MCP + 转发身份 | 方案一 |
 | 5 | 秒杀接口路径 | 保留 `/api/seckill/{id}/buy` / 改成规格的 `/api/flash-sale/{skuId}/orders` | 保留，可选加别名 |
@@ -687,43 +688,22 @@ k8s/
 
 ## 12. 用 agent 执行
 
-每个阶段交给一个 agent 会话完成，各开一个分支、各提一个 PR。合并之前，PR 必须通过下面的验收门槛，agent 不能用“已实现”代替“已验证”。
+一个阶段 = 一个 agent 会话 = 一个 PR。以下内容统一维护在 `CHANGE_SPEC.md` 中，本文不再重复：
 
-### 依赖与并行
-
-```mermaid
-flowchart LR
-  P0 --> P1
-  P1 --> P2 --> P3
-  P1 --> P4 --> P5
-  P2 --> P6
-  P4 --> P6
-  P1 --> P7
-```
-
-- P2→P3 和 P4→P5 两条线可以并行。但 P4 会把仓库拆成多模块，改动 pom 和目录结构，和 P2 一定会冲突。**要并行，就先单独开一个 PR 只做 P4.1（拆模块，不改行为），合并后再同时开 P2 和 P4。**
-- P0 的基线测量必须在 P1 之前完成，并且在 `v0.4.0-baseline` 这个 tag 上执行。
-
-### 每个阶段的验收门槛（写进给 agent 的提示词里）
-
-| 阶段 | agent 必须跑通并在 PR 里贴出结果 |
-| --- | --- |
-| 全部 | `./mvnw -B verify` 绿；`cd frontend && npm run build` 绿；更新 `CHANGELOG.md`、`HANDOFF.md` 状态表 |
-| P0 | Flyway 在空库和现有库上都能启动；`loadtest/results/baseline-redis-stream/` 已提交 |
-| P1 | `e2e_test.py` 8/8；`-Djdk.tracePinnedThreads=short` 下无大量 pinning 日志 |
-| P2 | §2.9 的四项手工验收逐条给出命令和输出 |
-| P3 | 三种配置 × 3 次的 k6 汇总文件；核对 SQL 的结果与 `orders_accepted` 一致 |
-| P4 | MCP Inspector 能列出全部工具；熔断器在错误 key 下打开；助手评测脚本的输出 |
-| P5 | 四种 mode 的评测表（分查询类型）；`eval/queries.jsonl` 的提交早于向量检索代码 |
-| P6 | CI 全绿；`kubectl get pods` 全部 Ready；新增 IT 全部通过 |
-| P7 | 上传一张图能回填表单（截图） |
+- 阶段依赖、推荐顺序、版本号：§0.3（要点：P2 与 P4a 不能同时进行；P6a 依赖 P2 和 P4a；P5b 要等人工标注和 embedding 决策；P7 可选，不阻塞其他阶段）
+- 各阶段 Maven 命令的工作目录：§0.4
+- 固定的依赖版本：§0.5
+- 通用停止规则：§0.8
+- 每个阶段的验收清单：各 §Pn
+- 可以直接交给 agent 的 P0 prompt：附 B
 
 ### 必须由人来做的部分
 
 agent 能写代码、跑测试，但下面这些要么需要你的账号或机器，要么由 agent 来做会让结果失去可信度：
 
-- **API key**：DeepSeek（P4）、embedding 提供方（P5，见决策 1）、OpenAI（P7）。通过环境变量或 secret 提供，不进仓库。
-- **压测环境**：P0 和 P3 的 k6 数字要在同一台、配置固定的机器上跑；云端 agent 容器的资源不稳定，测出来的数字不能写进简历。可以让 agent 写好脚本，你在自己的机器上执行。
+- **合并文档分支**：这是 P0 的唯一前置条件。
+- **API key**：DeepSeek（P4b）、embedding 提供方（P5b，见决策 1）、OpenAI（P7）。通过环境变量或 secret 提供，不进仓库。
+- **正式压测**：P3 的 A/B/C 三种配置，要在同一台、配置固定的机器上跑；云端 agent 容器只跑冒烟，数字不能写进简历。
 - **评测集标注**：`eval/queries.jsonl` 的“相关商品”要由你标注，至少要逐条审核。由实现检索的同一个 agent 来标注，等于自己出题自己考。
 - **截图**：MCP Inspector、Grafana、HPA 扩容、trace，都在你本地的 kind 集群和浏览器里完成。
 - **仓库设置**：开启 GHCR packages 写权限，以及 §10 里的几个决策。
