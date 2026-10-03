@@ -5,6 +5,22 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.4.4] — 2026-10-03 — Implementation spec for the upgrade
+
+Authored by Claude Code. Docs only.
+
+### Added
+- `docs/CHANGE_SPEC.md`: file-by-file implementation spec for the v0.5+ upgrade, split into
+  agent-sized phases (P0–P7, one PR each) with migrations, code skeletons, config, tests,
+  acceptance commands and out-of-scope lists.
+
+### Changed
+- `docs/UPGRADE_PLAN.md`: time estimates replaced by phase dependencies and an agent
+  execution guide; links to the spec; Flyway dependency note corrected for Boot 3.x.
+- `README.md`, `HANDOFF.md`: point to the spec.
+
+---
+
 ## [v0.4.3] — 2026-10-03 — Docs aligned with code + upgrade plan
 
 Authored by Claude Code. No application logic changed.

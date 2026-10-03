@@ -15,7 +15,8 @@ This document is the single source of truth for continuing development. The **fo
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
 has completed the P1/P2 handoff scope listed in §6. P3 and AI chatbot are also complete.
 The next phase (v0.5+: Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, CI/K8s)
-is specified in `docs/UPGRADE_PLAN.md`; known gaps in the current code are in §8 below.
+is specified in `docs/UPGRADE_PLAN.md` (rationale) and `docs/CHANGE_SPEC.md` (file-by-file
+implementation spec, one PR per phase); known gaps in the current code are in §8 below.
 
 ---
 

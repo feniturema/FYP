@@ -2,6 +2,8 @@
 
 2026-10-03 · 基于 `FTSM-upgrade-spec.md`，并对照当前代码（`main` @ `5f5fae4`，v0.4.0）
 
+> 本文讲“改什么、为什么”。逐文件的实现规格（给 agent 执行用）见 [`CHANGE_SPEC.md`](CHANGE_SPEC.md)；两者冲突时以 `CHANGE_SPEC.md` 为准。
+
 ---
 
 ## 0. 结论速览
@@ -113,7 +115,7 @@ FYP/
 2. ~~**修 B1/B2**~~：已在 v0.4.3 完成（compose 改传 `LLM_*`，README/HANDOFF 已对齐）。P1 升级 Java 21 时记得同步改 README 的 JDK 要求。
 3. **Maven Wrapper**：`mvn wrapper:wrapper -Dmaven=3.9.11`（先放在 `backend/`，P4 拆多模块时移到根目录）。
 4. **Flyway**：
-   - 加 `spring-boot-starter-flyway`（Boot 3.5 起用 `flyway-core` + `flyway-mysql` 也行）。
+   - 加 `flyway-core` + `flyway-mysql`（Boot 3.x 没有 flyway starter，版本由 Boot 管理）。
    - 用当前 schema 导出 `V1__baseline.sql`（`mysqldump --no-data`），配置 `spring.flyway.baseline-on-migrate=true`，`ddl-auto` 改成 `validate`。
    - 后续每个阶段的表结构变更都写成 `V2__...sql`、`V3__...sql`。
    - H2 profile 保留给本地快速启动，但 Flyway 脚本以 MySQL 方言为准；测试改用 Testcontainers（P6）。

@@ -13,8 +13,9 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.4.3 docs aligned with code + upgrade plan | Claude Code | 2026-10-03 | README/HANDOFF/compose corrected; `docs/UPGRADE_PLAN.md` added. |
 
 See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
-handoff/status ledger, and `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
-(Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s).
+handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
+(Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s) and
+`docs/CHANGE_SPEC.md` for its file-by-file implementation spec.
 
 - **Hybrid marketplace** — students list second-hand items (C2C) and an official
   admin store sells products (B2C) with flash-sale **SecKill** events.
@@ -193,7 +194,7 @@ Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
 backend/             Spring Boot API (controllers, services, security, Redis Lua + stream consumer)
 frontend/            Vite + React SPA (features: auth, marketplace, seckill, chatbot, admin; pages: cart, orders)
 scripts/e2e_test.py  end-to-end + SecKill concurrency verification
-docs/                upgrade plan
+docs/                upgrade plan + implementation spec
 docker-compose.yml   full stack for deployment
 .env.example         secrets template
 ```
