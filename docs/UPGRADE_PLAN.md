@@ -8,18 +8,18 @@
 
 规格文档的方向没问题，但它对“现状”的几个假设和代码对不上。照抄会出三类问题：做了没必要的工作，漏掉真正要改的地方，以及简历数字没法自圆其说。本方案把规格落到这个仓库的具体文件上，并调整了顺序：
 
-| 阶段 | 内容 | 对应规格 | 估时 |
+| 阶段 | 内容 | 对应规格 | 前置阶段 |
 | --- | --- | --- | --- |
-| **P0** | 打基线 tag、引入 Flyway、mvnw、**先写 k6 并测旧版本基线**（文档对齐与 compose 修复已在 v0.4.3 完成） | 新增（规格里的“改造前先跑基线”提前到这里） | 1.5 天 |
-| P1 | Java 21 + Spring Boot 3.5 + 虚拟线程 | 步骤 1 | 0.5 天 |
-| P2 | Outbox + Kafka 取代 Redis Stream，幂等消费 | 步骤 2 | 3–4 天 |
-| P3 | k6 正式压测（三种配置对比）+ 争抢测试 | 步骤 3 | 1–2 天 |
-| P4 | Spring AI + MCP server + SSE + Resilience4j | 步骤 4 | 3–4 天 |
-| P5 | 扩充商品目录、FULLTEXT 基线、Redis 向量、RRF、LLM 重排、评测集 | 步骤 5 | 4–5 天 |
-| P6 | Testcontainers、GitHub Actions、K8s、OpenTelemetry | 步骤 6 | 3–4 天 |
-| P7（可选） | GPT-4o Vision 上架助手（简历第四条提到了，但项目里没有） | 简历第四条 | 1–2 天 |
+| **P0** | 打基线 tag、引入 Flyway、mvnw、**先写 k6 并测旧版本基线**（文档对齐与 compose 修复已在 v0.4.3 完成） | 新增（规格里的“改造前先跑基线”提前到这里） | — |
+| P1 | Java 21 + Spring Boot 3.5 + 虚拟线程 | 步骤 1 | P0 |
+| P2 | Outbox + Kafka 取代 Redis Stream，幂等消费 | 步骤 2 | P1 |
+| P3 | k6 正式压测（三种配置对比）+ 争抢测试 | 步骤 3 | P2（基线来自 P0） |
+| P4 | Spring AI + MCP server + SSE + Resilience4j | 步骤 4 | P1 |
+| P5 | 扩充商品目录、FULLTEXT 基线、Redis 向量、RRF、LLM 重排、评测集 | 步骤 5 | P4（评测集须先人工标注） |
+| P6 | Testcontainers、GitHub Actions、K8s、OpenTelemetry | 步骤 6 | P2、P4 |
+| P7（可选） | GPT-4o Vision 上架助手（简历第四条提到了，但项目里没有） | 简历第四条 | P1 |
 
-合计约 4 周。时间不够时，P0–P3 是底线（简历第一条），P6 里的 Testcontainers 和 CI 次之。
+P0–P3 是底线（简历第一条），P6 里的 Testcontainers 和 CI 次之。按 agent 执行时的拆分方式、每个阶段的验收门槛和必须由人完成的部分，见 §12。
 
 ---
 
@@ -105,7 +105,7 @@ FYP/
 
 ---
 
-## P0 · 准备工作（1.5 天）
+## P0 · 准备工作
 
 目的：在动任何东西之前，把“旧版本”的数字定下来，并扫掉会干扰后续工作的 bug。
 
@@ -126,7 +126,7 @@ FYP/
 
 ---
 
-## P1 · Java 21 + Spring Boot 3.5 + 虚拟线程（0.5 天）
+## P1 · Java 21 + Spring Boot 3.5 + 虚拟线程
 
 改动：
 
@@ -148,7 +148,7 @@ FYP/
 
 ---
 
-## P2 · Outbox + Kafka 异步落单（3–4 天）
+## P2 · Outbox + Kafka 异步落单
 
 ### 2.1 数据库迁移 `V2__seckill_outbox.sql`
 
@@ -341,7 +341,7 @@ public void persist(SeckillOrderMessage m) {
 
 ---
 
-## P3 · k6 压测（1–2 天）
+## P3 · k6 压测
 
 ### 3.1 文件
 
@@ -382,7 +382,7 @@ D1 已经说明，旧版本是 Redis Stream 异步落单，而不是规格以为
 
 ---
 
-## P4 · Agent 助手：Spring AI + MCP + SSE + Resilience4j（3–4 天）
+## P4 · Agent 助手：Spring AI + MCP + SSE + Resilience4j
 
 ### 4.1 拆模块
 
@@ -478,7 +478,7 @@ location /api/assistant/stream {
 
 ---
 
-## P5 · 混合检索与评测（4–5 天）
+## P5 · 混合检索与评测
 
 ### 5.1 先造数据（D10）
 
@@ -531,7 +531,7 @@ List<Hit> search(String q, Filters f, Mode mode) {
 
 ---
 
-## P6 · 测试、CI、Kubernetes、可观测性（3–4 天）
+## P6 · 测试、CI、Kubernetes、可观测性
 
 ### 6.1 Testcontainers
 
@@ -631,7 +631,7 @@ k8s/
 
 ---
 
-## P7（可选）· GPT-4o Vision 上架助手（1–2 天）
+## P7（可选）· GPT-4o Vision 上架助手
 
 简历第四条写了 “multimodal listing pipeline using GPT-4o Vision”，但仓库里没有。要么做，要么删。做的话范围很小：
 
@@ -683,14 +683,45 @@ k8s/
 
 ---
 
-## 12. 时间线（按每周 5 个工作日）
+## 12. 用 agent 执行
 
-| 周 | 内容 | 周末交付 |
-| --- | --- | --- |
-| 第 1 周 | P0、P1、P2 前半（迁移、Lua、热路径、relay） | 基线数字；新热路径可以下单 |
-| 第 2 周 | P2 后半（消费者、DLT、对账、手工验收）、P3 | 简历第一条的全部数字 |
-| 第 3 周 | P4、P5 前半（造数据、标注评测集、FULLTEXT） | MCP Inspector 截图；评测集提交 |
-| 第 4 周 | P5 后半（向量、RRF、重排、跑分）、P6 | 评测表；CI 全绿；K8s 和 Grafana 截图 |
-| 机动 | P7、README 整理 | |
+每个阶段交给一个 agent 会话完成，各开一个分支、各提一个 PR。合并之前，PR 必须通过下面的验收门槛，agent 不能用“已实现”代替“已验证”。
 
-每完成一个阶段：更新 `CHANGELOG.md`（v0.5.0 起）、`HANDOFF.md` 的状态表，以及规格里的“数据记录表”。
+### 依赖与并行
+
+```mermaid
+flowchart LR
+  P0 --> P1
+  P1 --> P2 --> P3
+  P1 --> P4 --> P5
+  P2 --> P6
+  P4 --> P6
+  P1 --> P7
+```
+
+- P2→P3 和 P4→P5 两条线可以并行。但 P4 会把仓库拆成多模块，改动 pom 和目录结构，和 P2 一定会冲突。**要并行，就先单独开一个 PR 只做 P4.1（拆模块，不改行为），合并后再同时开 P2 和 P4。**
+- P0 的基线测量必须在 P1 之前完成，并且在 `v0.4.0-baseline` 这个 tag 上执行。
+
+### 每个阶段的验收门槛（写进给 agent 的提示词里）
+
+| 阶段 | agent 必须跑通并在 PR 里贴出结果 |
+| --- | --- |
+| 全部 | `./mvnw -B verify` 绿；`cd frontend && npm run build` 绿；更新 `CHANGELOG.md`、`HANDOFF.md` 状态表 |
+| P0 | Flyway 在空库和现有库上都能启动；`loadtest/results/baseline-redis-stream/` 已提交 |
+| P1 | `e2e_test.py` 8/8；`-Djdk.tracePinnedThreads=short` 下无大量 pinning 日志 |
+| P2 | §2.9 的四项手工验收逐条给出命令和输出 |
+| P3 | 三种配置 × 3 次的 k6 汇总文件；核对 SQL 的结果与 `orders_accepted` 一致 |
+| P4 | MCP Inspector 能列出全部工具；熔断器在错误 key 下打开；助手评测脚本的输出 |
+| P5 | 四种 mode 的评测表（分查询类型）；`eval/queries.jsonl` 的提交早于向量检索代码 |
+| P6 | CI 全绿；`kubectl get pods` 全部 Ready；新增 IT 全部通过 |
+| P7 | 上传一张图能回填表单（截图） |
+
+### 必须由人来做的部分
+
+agent 能写代码、跑测试，但下面这些要么需要你的账号或机器，要么由 agent 来做会让结果失去可信度：
+
+- **API key**：DeepSeek（P4）、embedding 提供方（P5，见决策 1）、OpenAI（P7）。通过环境变量或 secret 提供，不进仓库。
+- **压测环境**：P0 和 P3 的 k6 数字要在同一台、配置固定的机器上跑；云端 agent 容器的资源不稳定，测出来的数字不能写进简历。可以让 agent 写好脚本，你在自己的机器上执行。
+- **评测集标注**：`eval/queries.jsonl` 的“相关商品”要由你标注，至少要逐条审核。由实现检索的同一个 agent 来标注，等于自己出题自己考。
+- **截图**：MCP Inspector、Grafana、HPA 扩容、trace，都在你本地的 kind 集群和浏览器里完成。
+- **仓库设置**：开启 GHCR packages 写权限，以及 §10 里的几个决策。
