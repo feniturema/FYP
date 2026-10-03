@@ -13,12 +13,14 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.4.3 docs aligned with code + compose `LLM_*` fix + upgrade plan | Claude Code | 2026-10-03 | Docs **and** a deployment-config fix (`docker-compose.yml`); `docs/UPGRADE_PLAN.md` added. |
 | v0.4.4 implementation spec | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md` added (docs only). |
 | v0.4.5 spec made agent-executable | Claude Code | 2026-10-03 | Repo facts verified, P0 execution package, pinned versions (docs only). |
+| v0.4.6 per-phase execution packages | Claude Code | 2026-10-03 | `docs/phases/` + `docs/agent-prompts/` for all 11 phases, coverage matrix, registries (docs only). |
 
 The application code is unchanged since v0.4.2 (commit `5f5fae4`), which is the pre-upgrade
-baseline (tag `v0.4.2-baseline`, created by upgrade phase P0). See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
+baseline (tag `v0.4.2-baseline`, to be created by upgrade phase P0; it does not exist yet). See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
 handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
 (Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s) and
-`docs/CHANGE_SPEC.md` for its file-by-file implementation spec.
+`docs/CHANGE_SPEC.md` for the master implementation spec, with one execution package per phase in
+`docs/phases/` and a ready-to-use agent prompt per phase in `docs/agent-prompts/`.
 
 - **Hybrid marketplace** — students list second-hand items (C2C) and an official
   admin store sells products (B2C) with flash-sale **SecKill** events.
@@ -197,7 +199,7 @@ Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
 backend/             Spring Boot API (controllers, services, security, Redis Lua + stream consumer)
 frontend/            Vite + React SPA (features: auth, marketplace, seckill, chatbot, admin; pages: cart, orders)
 scripts/e2e_test.py  end-to-end + SecKill concurrency verification
-docs/                upgrade plan + implementation spec
+docs/                upgrade plan, master spec, per-phase packages (phases/) and prompts (agent-prompts/)
 docker-compose.yml   full stack for deployment
 .env.example         secrets template
 ```

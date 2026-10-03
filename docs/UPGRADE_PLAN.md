@@ -23,7 +23,7 @@
 
 各阶段的前置依赖、版本号、Maven 命令的工作目录和固定的依赖版本，统一以 [`CHANGE_SPEC.md`](CHANGE_SPEC.md) §0.3–§0.5 为准，本文不再重复。P0 的唯一前置条件：包含本文的文档分支（v0.4.3–v0.4.5）已经合并到 `main`。
 
-P0–P3 是底线（简历第一条），P6a（Testcontainers + CI）次之。按 agent 执行的方式和必须由人完成的部分，见 §12。
+P0–P3 是底线（简历第一条），P6a（Testcontainers + CI）次之。执行顺序是 P0 → P1 → P2 → P3 → P4a → **P6a** → P4b → P5a →（人工标注）→ P5b → P6b → P7。P6a 提前到 P4a 之后，是为了让后续阶段都能编写集成测试。每个阶段的完整执行包在 `docs/phases/`，prompt 在 `docs/agent-prompts/`。
 
 ---
 
@@ -111,7 +111,7 @@ FYP/
 
 ## P0 · 准备工作
 
-目的：在动任何东西之前，把旧版本冻结下来以便对比，并补齐构建和迁移工具。逐步命令、验收矩阵和失败规则见 `CHANGE_SPEC.md` §P0；下面只说明设计上的取舍。
+目的：在动任何东西之前，把旧版本冻结下来以便对比，并补齐构建和迁移工具。逐步命令、验收矩阵和失败规则见 `docs/phases/P0.md`；下面只说明设计上的取舍。
 
 1. **基线 tag**：`v0.4.2-baseline` → `5f5fae4`。tag 冻结了代码，所以正式基线可以在 P3 之前的任何时间测。
 2. **Maven Wrapper**：Maven 3.9.11，带 sha256 校验，先放在 `backend/`，P4a 时移到根目录。
@@ -135,7 +135,7 @@ FYP/
 | 文件 | 改什么 |
 | --- | --- |
 | `backend/pom.xml` | parent → `3.5.16`；`java.version` → `21`；去掉 Lombok 版本覆盖（改用 Boot 管理的 1.18.46）；springdoc → 2.8.17 |
-| `backend/Dockerfile` | `maven:3.9-eclipse-temurin-21`、`eclipse-temurin:21-jre`；`ENTRYPOINT` 加 `-XX:MaxRAMPercentage=75` |
+| `backend/Dockerfile` | `maven:3.9.11-eclipse-temurin-21-noble`、`eclipse-temurin:21.0.12.1_1-jre-noble`（21 线撰写时最新的补丁标签）；`ENTRYPOINT` 加 `-XX:MaxRAMPercentage=75` |
 | `application.yml` | `spring.threads.virtual.enabled: true`；`spring.datasource.hikari.maximum-pool-size: ${DB_POOL_SIZE:20}`（之后作为压测参数） |
 | README / HANDOFF | JDK 要求改为 21 |
 
@@ -144,7 +144,7 @@ FYP/
 - 开虚拟线程后，`@Scheduled` 也跑在虚拟线程上，`reconcileEvents` 和后面的 `OutboxRelay` 不受影响。
 - 用 `-Djdk.tracePinnedThreads=short` 跑一次压测，检查 pinning。mysql-connector-j 9.x 已把 `synchronized` 换成 `ReentrantLock`，Boot 3.5 管理的版本就够新。
 - **可选**：如果想彻底消除 `synchronized` pinning，可以上 JDK 25 LTS（JEP 491），但要确认 Lombok ≥ 1.18.40；简历写 “Java 21+” 也成立。默认按规格用 21，当前容器里就是 21.0.11。
-- **版本**：3.5.16 是撰写时 3.5 线的最新版本。如果执行时 3.5 已经停止开源支持，由人决定是否改走 Boot 4（届时 Spring AI 要换成 2.x，ShedLock 要换成 7.x）。
+- **版本（D1）**：3.5.16 是 3.5 线的最后一个版本（2026-06-25 发布），之后只有 4.0.x / 4.1.x 继续发布，开源支持很可能已经结束。是否仍然使用 3.5.16，是 P1 开工前必须由人做出的决策 D1，见 `CHANGE_SPEC.md` §0.9。
 
 验收：`cd backend && ./mvnw -B verify` 绿；e2e_test.py 8/8；`/actuator/health` UP。
 
@@ -396,7 +396,7 @@ D1 已经说明，旧版本是 Redis Stream 异步落单，而不是规格以为
 
 - 依赖：`spring-ai-starter-mcp-server-webmvc`、`catalog-core`、data-jpa、data-redis。
 - 端口 8081；只读数据库账号（`GRANT SELECT`），从权限上保证只读。
-- 工具（`ShopTools.java`；注解名以 Spring AI 1.1 文档为准，1.1 用的是 `@McpTool` / `@McpToolParam`，也可以用 `@Tool` + `MethodToolCallbackProvider`）：
+- 工具（`ShopTools.java`）：用 `@Tool` 加 `MethodToolCallbackProvider` 注册，已在 Spring AI 1.1.8 上实验通过；streamable HTTP 的端点为 `/mcp`。
 
 | 工具 | 参数 | 数据来源 |
 | --- | --- | --- |
@@ -424,8 +424,8 @@ List<OrderView> myOrders(ToolContext ctx) {
 
 ### 4.4 助手服务（backend 内，替换 `ChatService`）
 
-- 依赖：`spring-ai-starter-mcp-client`、`spring-ai-starter-model-deepseek`、`resilience4j-spring-boot3`、`resilience4j-reactor`。
-- MCP 客户端不用 Spring AI 的自动配置（它在启动时连接 MCP server，连不上会导致 backend 启动失败），改为自己实现的 `McpToolsProvider`：延迟连接，失败时返回空工具集，并定时重试。细节见 `CHANGE_SPEC.md` §P4b。`spring.ai.deepseek.api-key=${LLM_API_KEY}`、`chat.options.model=${LLM_MODEL}`。**先确认所选 DeepSeek 模型支持 tool calling**（历史上 reasoner 类模型不支持）。
+- 依赖：`spring-ai-starter-model-deepseek`、`spring-ai-mcp`、MCP SDK、`resilience4j-spring-boot3`、`resilience4j-reactor`。**不使用** `spring-ai-starter-mcp-client`：实验表明，server 不可达时它会导致 backend 启动失败。
+- MCP 客户端不用 Spring AI 的自动配置（它在启动时连接 MCP server，连不上会导致 backend 启动失败），改为自己实现的 `McpToolsProvider`：延迟连接，失败时返回空工具集，并定时重试。细节见 `docs/phases/P4b.md`。`spring.ai.deepseek.api-key=${LLM_API_KEY}`、`chat.options.model=${LLM_MODEL}`。**先确认所选 DeepSeek 模型支持 tool calling**（历史上 reasoner 类模型不支持）。
 - 会话记忆：`MessageWindowChatMemory`（最近 10 条），以 `conversationId = userId + 前端生成的会话 UUID` 为键。
 
 ```java
@@ -452,8 +452,8 @@ Flux<String> fallback(Long u, String c, String q, Throwable t) { return Flux.jus
 
 - 保留旧的 `POST /api/chat`（非流式），内部改成 `stream().collectList()`，避免一次改动打断前端。
 - **为什么用 POST 而不是规格里的 GET + EventSource**：`EventSource` 不能设置 `Authorization` 头，而本项目的 JWT 放在请求头里；把 token 放进 URL 又会被写进访问日志。所以前端用 `fetch` + `ReadableStream` 解析 SSE（或用 `@microsoft/fetch-event-source`）。
-- Spring Security：MVC 返回 `Flux` 时会再做一次 ASYNC 分派。现在的 `JwtAuthFilter` 没有把认证信息存进 `SecurityContextRepository`，所以 ASYNC 分派会被拒（这就是 v0.4.0 把聊天接口改成阻塞调用的原因）。修法：`JwtAuthFilter` 把 context 存进 `RequestAttributeSecurityContextRepository`，ASYNC 分派仍然要经过鉴权，**不做** `permitAll` 式的放行；并补上未认证请求被拒的测试。设置 `spring.mvc.async.request-timeout=60s`。
-- 没有 key 时：`LLM_PROVIDER` 默认为 `none`，此时不创建 ChatModel，助手返回 “not configured”，应用照常启动。
+- Spring Security：在 Boot 3.5.16 / Security 6.5 上实验，即使不保存 SecurityContext，返回 `Flux` 或 `Mono` 的接口在真实 Tomcat 上也能正常通过鉴权，v0.4.0 时的 403 没有复现；另外 MockMvc 的 asyncDispatch 不能用来证明这一点。因此做法是：先写真实服务器的鉴权 IT，只有在复现 403 时才修改 `JwtAuthFilter`，让它把 context 存进 `RequestAttributeSecurityContextRepository`；**不做** `permitAll` 式的放行。设置 `spring.mvc.async.request-timeout=60s`。
+- 没有 key 时：实验表明，只设置 `spring.ai.model.chat=none` 不够，`ChatClientAutoConfiguration` 仍然会要求一个 ChatModel，导致启动失败；provider 为 deepseek 但 key 为空也会启动失败。因此：一律设置 `spring.ai.chat.client.enabled=false`；`LLM_PROVIDER` 默认为 `none`；provider 为 deepseek 但 key 为空时，由 EnvironmentPostProcessor 改为 none；ChatClient 由我们用 `ObjectProvider<ChatModel>` 自己构建。
 - Nginx（修 B7）：
 
 ```nginx
@@ -506,7 +506,7 @@ ngram 解析器同时支持中文和空格分词的语言。查询用 `MATCH(...
 ### 5.4 向量召回
 
 - Redis 8 自带查询引擎（P2 已经换了镜像）。
-- 用 Spring AI `spring-ai-starter-vector-store-redis`：索引名 `idx:catalog`，前缀 `catalog:`，元数据字段 `type`(TAG: product/item)、`category`(TAG)、`price`(NUMERIC)、`refId`。带属性约束的查询（“200 令吉以内”）走 `price <= 200` 的过滤表达式，即 Redis 的 `(@price:[0 200])=>[KNN 20 @embedding $vec]` 预过滤。注意 RedisVectorStore 底层用 Jedis，和应用里的 Lettuce 可以共存。
+- 用 Spring AI 的库模块 `spring-ai-redis-store`（**不用** starter，以免自动配置再创建一个 VectorStore），由 holder 在第一次使用时手工创建：索引名 `idx:catalog`，前缀 `catalog:`，元数据字段 `type`(TAG: product/item)、`category`(TAG)、`price`(NUMERIC)、`refId`。带属性约束的查询（“200 令吉以内”）走 `price <= 200` 的过滤表达式，即 Redis 的 `(@price:[0 200])=>[KNN 20 @embedding $vec]` 预过滤。注意 RedisVectorStore 底层用 Jedis，和应用里的 Lettuce 可以共存。
 - 嵌入文本：`title + " | " + category + " | " + description`。
 - 同步：`ProductService` / `ItemService` 增删改后发布 `CatalogChangedEvent`，用 `@TransactionalEventListener(phase = AFTER_COMMIT)` 异步重新生成向量；另有一次性回填命令 `--catalog.reindex=true`。
 - Embedding 模型：见 §10 决策 1。
@@ -616,7 +616,7 @@ k8s/
 
 - **B3**：`reconcileEvents` 加 ShedLock 6.10.0（`shedlock-provider-jdbc-template`，加一张 `shedlock` 表），只让一个副本执行。7.x 面向 Spring 7，不能用。P2 的 `SET NX` 是第二道保险。
 - `OutboxRelay`：`SKIP LOCKED` 本身就支持多副本，不需要 ShedLock。
-- **B6**：上传文件。kind 环境下用一个 `ReadWriteMany` 的 hostPath PVC 应急，或者部署一个 MinIO，`UploadController` 改为写 S3。简历里没提这一点，可以选最省事的做法，但必须处理，否则多副本时图片会随机 404。
+- **B6**：上传文件。kind 是单节点集群，同一节点上的多个 Pod 可以共用一个 `ReadWriteOnce` 的 PVC（`standard` StorageClass，provisioner 在运行时检查）；多节点环境需要 RWX 存储或对象存储，本次升级不实现，只在文档中写明限制。
 - 探针：`management.endpoint.health.probes.enabled=true`，liveness 和 readiness 分别指向对应的 actuator 路径。
 - kind 安装 metrics-server 时要加 `--kubelet-insecure-tls` 参数。
 
@@ -649,7 +649,7 @@ k8s/
 | # | 问题 | 选项 | 我的建议 |
 | --- | --- | --- | --- |
 | 1 | Embedding 提供方（DeepSeek 没有 embedding 接口） | a) OpenAI `text-embedding-3-small`：600 个商品回填的费用几乎为零，需要新 key；b) Ollama 本地 `bge-m3`：免费，跨语言（中/英/马来）效果好，但 compose 和 K8s 要多跑一个容器，CPU 推理较慢；c) Spring AI ONNX 默认的 MiniLM：只支持英文，**跨语言那一类会很差** | 有 OpenAI key 就选 a（顺便支撑 P7），没有就选 b。不要选 c |
-| 2 | Spring Boot 版本 | 3.5.16 + Spring AI 1.1.8（按规格）或 4.x + Spring AI 2.x | 默认 3.5.16；只有在 3.5 已停止支持时才需要决定 |
+| 2 | Spring Boot 版本（D1） | 3.5.16 + Spring AI 1.1.8（按规格）或 4.x + Spring AI 2.0.x | 3.5 线的开源支持很可能已经结束；P1 开工前必须由人决定。规格按 3.5.16 编写；改用 Boot 4 需要先修订规格 |
 | 3 | 简历第四条的 GPT-4o Vision | 做 P7 / 删掉 | 做，成本低，演示效果好 |
 | 4 | 订单工具放在哪 | 方案一：本地 `@Tool` / 方案二：MCP + 转发身份 | 方案一 |
 | 5 | 秒杀接口路径 | 保留 `/api/seckill/{id}/buy` / 改成规格的 `/api/flash-sale/{skuId}/orders` | 保留，可选加别名 |
@@ -690,12 +690,13 @@ k8s/
 
 一个阶段 = 一个 agent 会话 = 一个 PR。以下内容统一维护在 `CHANGE_SPEC.md` 中，本文不再重复：
 
-- 阶段依赖、推荐顺序、版本号：§0.3（要点：P2 与 P4a 不能同时进行；P6a 依赖 P2 和 P4a；P5b 要等人工标注和 embedding 决策；P7 可选，不阻塞其他阶段）
+- 阶段依赖、推荐顺序、版本号：§0.3（要点：按 P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a →（人工标注）→ P5b → P6b → P7 串行执行；P2 与 P4a 不能同时进行；P5b 要等人工标注和 D2；P1 要等 D1；P7 可选，不阻塞其他阶段）
 - 各阶段 Maven 命令的工作目录：§0.4
 - 固定的依赖版本：§0.5
 - 通用停止规则：§0.8
-- 每个阶段的验收清单：各 §Pn
-- 可以直接交给 agent 的 P0 prompt：附 B
+- 迁移、环境变量、端口、跨阶段符号的登记表：§0.6、§0.7、§0.11、§0.12
+- 人工决策与已知风险：§0.9；Coverage Matrix：§1；尚未验证的事项：§3
+- 每个阶段的完整执行包：`docs/phases/<阶段>.md`；每个阶段的 prompt：`docs/agent-prompts/<阶段>.md`
 
 ### 必须由人来做的部分
 

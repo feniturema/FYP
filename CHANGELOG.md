@@ -5,6 +5,51 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.4.6] — 2026-10-03 — Per-phase execution packages
+
+Authored by Claude Code. Docs only (`docs/`, `README.md`, `HANDOFF.md`, `CHANGELOG.md`); no
+application code, configuration or Compose changes.
+
+### Added
+- `docs/phases/{P0,P1,P2,P3,P4a,P6a,P4b,P5a,P5b,P6b,P7}.md`: one complete execution package per phase.
+  Each has the same 12 sections: goals and non-goals, preconditions, inputs and outputs, file list,
+  ordered tasks, contracts, configuration and run commands, tests, acceptance matrix, upgrade and
+  recovery, PR gate, and prompt.
+- `docs/agent-prompts/*.md`: a standalone prompt for every phase.
+
+### Changed
+- `docs/CHANGE_SPEC.md` rewritten as the master spec:
+  - verified repo facts and evidence markers;
+  - phase order — P6a moves before P4b so that later phases can add integration tests;
+  - version baseline with evidence;
+  - migration, environment variable, port and cross-phase symbol registries;
+  - stop rules, human decisions (D1/D2/D3/L1/B1) and known risks;
+  - coverage matrix, issues fixed, unverified checklist, and readiness per phase.
+- `docs/UPGRADE_PLAN.md`: aligned with this round's experiment results — MCP client starter,
+  no-key startup, async security, vector store module, uploads, Boot 3.5 support status (D1) and
+  the new phase order.
+
+### Verified — 2026-10-03, in scratch projects outside the repo
+- Boot 3.5.16 + Spring AI 1.1.8:
+  - with `spring.ai.model.chat=none` alone, startup still fails (ChatClient auto-configuration);
+  - a deepseek provider with an empty key fails startup;
+  - an EnvironmentPostProcessor guard works;
+  - the MCP client starter fails startup when the server is unreachable;
+  - the MCP streamable server endpoint is `/mcp`, and the Java client can list and call tools;
+  - `prompt().system()` replaces `defaultSystem`;
+  - a `Flux`/`Mono` endpoint passes authentication on real Tomcat without saving the
+    SecurityContext, and MockMvc `asyncDispatch` is not a faithful test of this.
+- Compiled against the APIs the spec relies on, including `SyncMcpToolCallbackProvider`,
+  `ToolCallbacks`, `RedisVectorStore.builder`, `FilterExpressionBuilder`,
+  `W3CTraceContextPropagator`, and the MCP transport `connectTimeout`.
+- k6 2.3.0: `dropped_iterations` thresholds, result-tagged counters, checksum values.
+- Version, tag, checksum and digest values are listed in `docs/CHANGE_SPEC.md` §0.5.
+
+### Not executed
+- No phase was implemented. All integration acceptance listed in `docs/CHANGE_SPEC.md` §3 is pending.
+
+---
+
 ## [v0.4.5] — 2026-10-03 — Upgrade spec made agent-executable
 
 Authored by Claude Code. Docs only (`docs/`, `README.md`, `HANDOFF.md`, `CHANGELOG.md`).

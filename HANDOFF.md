@@ -10,14 +10,15 @@
 | P3: cart checkout + image upload | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.3.0 |
 | AI chatbot activated (DeepSeek OpenAI-compatible) | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.4.0–v0.4.2 |
 | Docs aligned with code; compose `LLM_*` fix; upgrade plan | Claude Code | 2026-10-03 | `CHANGELOG.md` v0.4.3; `docs/UPGRADE_PLAN.md` |
-| Upgrade implementation spec (v0.4.4) and agent-executable revision (v0.4.5) | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md` |
+| Upgrade implementation spec (v0.4.4), agent-executable revision (v0.4.5), per-phase execution packages (v0.4.6) | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md`, `docs/phases/`, `docs/agent-prompts/` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
 has completed the P1/P2 handoff scope listed in §6. P3 and AI chatbot are also complete.
 The next phase (v0.5+: Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, CI/K8s)
-is specified in `docs/UPGRADE_PLAN.md` (rationale) and `docs/CHANGE_SPEC.md` (file-by-file
-implementation spec, one PR per phase); known gaps in the current code are in §8 below.
+is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (master spec) and
+`docs/phases/` + `docs/agent-prompts/` (one execution package and prompt per phase); known gaps in the
+current code are in §8 below.
 
 ---
 
@@ -268,9 +269,11 @@ Write at least a happy-path test where noted.
 - ✅ AI chatbot ACTIVE: DeepSeek OpenAI-compatible integration; `ChatService` product-context aware; `ChatWidget` live. (Claude Code v0.4.0)
 - ✅ All builds green (backend + frontend) and `scripts/e2e_test.py` 8/8 after v0.4.0.
 - ⬜ Remaining: real server deployment, HTTPS, real SMTP verification end-to-end.
-- ⬜ Next: v0.5+ upgrade per `docs/CHANGE_SPEC.md`. Prerequisite: the docs branch (v0.4.3–v0.4.5) is merged
-  into `main`. Then run P0 with the prompt in `docs/CHANGE_SPEC.md` 附 B (baseline tag `v0.4.2-baseline` →
-  `5f5fae4`, Maven Wrapper, Flyway V1, k6 smoke).
+- ⬜ Next: v0.5+ upgrade. Master spec: `docs/CHANGE_SPEC.md` (dependencies, registries, coverage matrix).
+  Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
+  Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
+  Prerequisite for P0: the docs branch (v0.4.3–v0.4.6) is merged into `main`. Human decisions pending:
+  D1 (stay on Boot 3.5.16, gates P1), D2 (embedding provider, gates P5b), D3 (implement P7).
 
 ---
 
