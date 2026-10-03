@@ -5,6 +5,33 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.4.3] — 2026-10-03 — Docs aligned with code + upgrade plan
+
+Authored by Claude Code. No application logic changed.
+
+### Fixed
+- `docker-compose.yml`: backend now receives `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`
+  (it was still passing the obsolete `GEMINI_API_KEY` / `GEMINI_MODEL`, so the assistant
+  always answered "not configured" under Docker).
+
+### Changed — Docs
+- `README.md`: DeepSeek instead of Gemini; traceability rows for v0.3.0–v0.4.3; SecKill
+  description corrected (hot path reads the event row once and never *writes* MySQL;
+  non-accepted results return 200); added cart, upload and assistant flows; accurate test
+  inventory (5 JUnit tests + e2e script); new "Known limitations" section; full env-var list.
+- `HANDOFF.md`: chatbot no longer marked ON HOLD; default model `deepseek-v4-flash`;
+  `/api/upload` added to the API surface; architecture note corrected; new
+  "Known gaps" list (single-replica scheduler, normal-checkout race, Stream durability,
+  no migrations, local uploads, empty `prod` profile).
+- `backend/pom.xml`: stale "WebClient for Gemini" comment.
+
+### Added
+- `docs/UPGRADE_PLAN.md`: gap analysis of the FTSM upgrade spec against this codebase and a
+  phased plan (P0–P7) for Java 21, Outbox + Kafka, k6, Spring AI/MCP, hybrid retrieval,
+  Testcontainers/CI/K8s/OpenTelemetry.
+
+---
+
 ## [v0.4.2] — 2026-06-01 — Default model → deepseek-v4-flash (faster)
 
 - Benchmarked both DeepSeek v4 models (3 runs each, same product-context prompt):
