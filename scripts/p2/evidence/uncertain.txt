@@ -1,6 +1,7 @@
+# Tracking tokens / order ids (UUIDs) are replaced by consistent pseudonyms tok-<sha256[:12]>.
 event 4; warm-up buy by user 3000000001: 202 ACCEPTED
 $ docker compose -p ftsm-p2-acc stop mysql   (took 4s)
 buy by user 3000000002 while MySQL is stopped: 503 UNAVAILABLE  (answered 64s after the stop began)
 SISMEMBER seckill:bought:{4} 3000000002 = 1   (1 = not compensated, as §6.1 requires when unconfirmable)
 UNCERTAIN log line:
-2026-10-04T10:10:07.263Z ERROR 1 --- [ftsm-ecommerce] [omcat-handler-7] m.e.u.f.e.service.SeckillService         : [SecKill] UNCERTAIN orderId=8cb70507-5163-48d8-a8e5-5d2e53545763 userId=3000000002 eventId=4: outbox inse
+2026-10-04T10:10:07.263Z ERROR 1 --- [ftsm-ecommerce] [omcat-handler-7] m.e.u.f.e.service.SeckillService         : [SecKill] UNCERTAIN orderId=tok-e96b0610f6a1 userId=3000000002 eventId=4: outbox inse

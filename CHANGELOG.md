@@ -53,7 +53,7 @@ Failure semantics are the table in `docs/phases/P2.md` §6.1.
 - `SeckillStreamConsumer`, `RedisKeys.seckillOrdersStream/seckillConsumerGroup`, the `h2` runtime profile.
 
 ### Verified (`docs/phases/P2.md` §9; macOS arm64, Docker Engine 29.8.1 / Compose v5.5.1; evidence `scripts/p2/evidence/`)
-A1 on `49b1e04`; A2–A12 by `scripts/p2/acceptance.sh` on `6688532` with a clean tree (A12 `run.json`: `gitDirty=false`).
+A1 on `49b1e04`. Full A2–A12 run on `6688532` (clean tree; `acceptance-summary-6688532.txt`). After the A6 revision, A2, A3, A6, A7 and A12 were rerun on clean `e00b351` (`acceptance-summary-e00b351.txt`; A12 `run.json` `gitSha=e00b351`, `gitDirty=false`): A6 and the two `contention.js` users (A7, A12) are affected by `901b5a4`; A2/A3 bring the stack up. A1, A4, A5, A8–A11, A13 keep their `6688532`-era evidence: between `6688532` and `e00b351` no backend, migration, compose or `run.sh`/`drain.sh` code changed, only `contention.js` (opt-in request log, off by default), `acceptance.sh` (A6 function and the k6 env pass-through) and the new `verify_crash.py`.
 
 | ID | Result | Key output |
 | --- | --- | --- |
@@ -62,15 +62,20 @@ A1 on `49b1e04`; A2–A12 by `scripts/p2/acceptance.sh` on `6688532` with a clea
 | A3 | pass | `flyway_schema_history`: `1 1`, `2 1` (`flyway.txt`) |
 | A4 | pass | e2e 8/8; 200 users vs 50 units: `ACCEPTED=50 SOLD_OUT=150 others=0` (`e2e.txt`) |
 | A5 | pass | orders = buyers = sold_count = 50, all PAID, outbox NEW 0, Redis remaining 0 (`verify-a5.tsv`) |
-| A6 | **fail — spec conflict, decision pending** | kill landed mid-run (`k6_running_at_kill=yes`); orders 50 = buyers 50 = sold_count 50 ≤ stock, no duplicates, outbox NEW 0; but k6 received 49 × 202. One request had committed its outbox row (T1) when SIGKILL hit, so its client got `EOF` while its order was (correctly) created. The A6 assertion `orders == 202 received` contradicts §6.1, which only guarantees 202 ⇒ order (`crash.tsv`, `crash-analysis.txt`) |
-| A7 | pass | Kafka paused 30 s: 20/20 buys → 202 while paused, outbox NEW peaked at 20, relay rolled back each batch; drained 4 s after unpause; orders = accepted = 20 (`kafka-pause.tsv`) |
+| A6 | **pass (revised spec, `e00b351`)** | Revised 2026-10-04 with maintainer approval (`docs/phases/P2.md` §9 A6): per-request reconciliation by `scripts/p2/verify_crash.py`. Rerun on clean `e00b351`: SIGKILL landed mid-run; 200 requests = 10 × 202 + 190 with no HTTP response; each of the 10 received 202 tokens has exactly one order of that user; 0 orders without a received 202; orders 10 = outbox 10 = sold_count 10 ≤ 50; no duplicates; outbox drained 35 s after recovery (limit 180 s). Negative control: removing the order of any one of the 10 received-202 requests makes the check fail (10/10); `--self-test` PASS (`crash.tsv`, `crash-verify.txt`, `crash-negative-all.txt`, `crash-requests.txt`, `crash-orders.tsv`, `crash-outbox.tsv`) |
+| A6 (old spec) | fail, superseded | `6688532`, old assertion `orders == received 202`: orders 50 = buyers = sold_count, no duplicates, but 49 × 202 received; one request's outbox row (T1) had committed when SIGKILL hit, so its client got `EOF` while its order was correctly created (`A6-oldspec-crash.tsv`, `A6-oldspec-crash-analysis.txt`). This contradiction with §6.1 led to the revision |
+| A7 | pass (`6688532` and rerun `e00b351`) | Kafka paused 30 s: 20/20 buys → 202 while paused, outbox NEW peaked at 20, relay rolled back each batch; drained 4 s after unpause; orders = accepted = 20 (`kafka-pause.tsv`) |
 | A8 | pass | offsets reset to earliest: orders unchanged, every replayed message logged `duplicate … skipped` (`replay.txt`) |
 | A9 | pass | MySQL stopped: buy → 503 `UNAVAILABLE` after ~60 s (two Hikari timeouts), user still in the bought set (no compensation), `UNCERTAIN` logged (`uncertain.txt`) |
 | A10 | pass | 20 concurrent buyers of a 1-unit product: one 200, nineteen 400 `Product is out of stock.`, stock 0, one order (`race.txt`) |
 | A11 | pass | 1-minute event, 5 orders: `reconciled=1`, INFO `consistent (pending=0 published=5 orders=5 sold_count=5 redisSold=5)` (`reconcile.txt`) |
-| A12 | pass | `run.sh --config P2 … --reject-status 409 --drain outbox`: rc 0, orders = buyers = accepted = 5, Redis 0 (`loadtest/results/_smoke/P2/`) |
+| A12 | pass (`6688532` and rerun `e00b351`) | `run.sh --config P2 … --reject-status 409 --drain outbox`: rc 0, orders = buyers = accepted = 5, Redis 0 (`loadtest/results/_smoke/P2/`) |
 | A13 | pass | cutover rehearsal on a P1-history copy (`cutover-rehearsal.sh`, commit `6688532`): precheck FAILs while an event is live (control), PASSes after it ends (stream consumed, 10/10 tokens have orders, no duplicates); V2 `success=1`; 10/10 SECKILL orders backfilled; ended event `reconciled=1`, `sold_count=10`; future event re-warmed as `seckill:stock:{2}=7`; legacy stream archived (`cutover.txt`) |
-| A14 | pass | `down -v` of `ftsm-p2-acc` only: 0 containers / volumes / networks left (`cleanup.txt`) |
+| A14 | pass | `down -v` of `ftsm-p2-acc` only, after each run: 0 containers / volumes / networks left (`cleanup.txt`, `cleanup-e00b351.txt`) |
+
+### Spec revision
+- `docs/phases/P2.md` §9 A6 (and §4/§8 entries for `verify_crash.py` and `contention.js` `REQUEST_LOG`), approved by the
+  maintainer on 2026-10-04: the crash test reconciles request by request instead of asserting `orders == received 202`.
 
 ### Deviations from spec (details in the P2 PR)
 - `SeckillOrderListener` logs `duplicate … skipped` at INFO (§6.7 shows debug): A8 asserts on that log line
@@ -81,6 +86,8 @@ A1 on `49b1e04`; A2–A12 by `scripts/p2/acceptance.sh` on `6688532` with a clea
   and reconcile saves must never write a stale `sold_count` back (found in code review).
 - The `REJECT_STATUS` default lives in `loadtest/lib/result.js`, so it was changed there (the scenarios import it).
 - Janitor test lives in `SeckillReconcilerTest` (no test file outside the §4 list).
+- Evidence: tracking tokens are pseudonymised (`tok-<sha256[:12]>`, consistent across files); raw tool output keeps its
+  trailing whitespace; `cutover-rehearsal.sh` was edited after its run only to stop embedding credentials.
 - macOS host: `scripts/tools/install_k6.sh` is Linux-only, so k6 ran as the pinned `grafana/k6:2.3.0` image;
   a session-only `timeout` shim stood in for coreutils (needed by `wait_cmd`).
 

@@ -7,7 +7,7 @@ drain mode, `verify_outbox.sql`, `compose:` targets and the 409 default.
 | File | Role |
 | --- | --- |
 | `throughput.js` | Ramp to `RATE` req/s over `RAMP` s, hold for `STEADY` s; every iteration is a new synthetic buyer |
-| `contention.js` | `BUYERS` distinct buyers (`VUS` concurrent) race for `STOCK` units |
+| `contention.js` | `BUYERS` distinct buyers (`VUS` concurrent) race for `STOCK` units; `REQUEST_LOG=1` prints one `REQ userId=… status=… result=… token=…` line per request (used by P2 A6 / `scripts/p2/verify_crash.py`) |
 | `lib/jwt.js` | HS256 tokens signed with the backend's `JWT_SECRET` (no account registration needed) |
 | `lib/result.js` | Judges each response by its JSON `result`, counts `seckill_results{result}` and `seckill_mismatch`; `REJECT_STATUS` defaults to **409** (P2+) |
 | `setup_event.py` | Creates a fresh product + SecKill event via the admin API and waits until it is `ACTIVE` |

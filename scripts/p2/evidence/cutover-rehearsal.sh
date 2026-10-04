@@ -14,7 +14,8 @@
 # Kafka is not attached in this rehearsal (the pipeline is covered by A4–A12); only the DB/Redis
 # cutover is rehearsed. Cleans up everything it started.
 # Revised after the A13 run on 6688532 (no behaviour change): the JWT secret is random per run and the
-# seed admin password is read from application.yml instead of being written in this file.
+# seed admin password is read from application.yml and the temp DB password from lib.sh's default,
+# instead of being written in this file.
 set -Eeuo pipefail
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
@@ -22,7 +23,7 @@ cd "$REPO"
 P2_TMP=${P2_TMP:?set P2_TMP}
 P2_JAR=${P2_JAR:-backend/target/ecommerce-0.0.1-SNAPSHOT.jar}
 OUT=$REPO/scripts/p2/evidence/cutover.txt
-export P0_MYSQL_MODE=docker P0_TMP=$P2_TMP DB_PASSWORD=root
+export P0_MYSQL_MODE=docker P0_TMP=$P2_TMP   # DB_PASSWORD: lib.sh default for the disposable temp instance
 export JWT_SECRET=$(openssl rand -hex 32)   # throwaway, never written anywhere
 source scripts/db/lib.sh
 DB=ftsm_p2_cutover PORT=18095 BASE=http://127.0.0.1:18095
@@ -92,7 +93,7 @@ say "precheck rc=$rc (expected 1)"
 
 say "## wait until the e2e event has ended"
 end_s=$(q "SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(6), end_time)) FROM seckill_events WHERE id=$E2E_EVENT" | tail -n 1)
-wait_cmd $(( end_s + 60 )) "e2e event ended" -- sh -c '[ "$(docker exec -e MYSQL_PWD=root ftsm-p0-mysql mysql -uroot -N -e "SELECT COUNT(*) FROM seckill_events WHERE end_time >= NOW(6) AND start_time <= NOW(6) + INTERVAL 30 MINUTE" '"$DB"')" = 0 ]'
+wait_cmd $(( end_s + 60 )) "e2e event ended" -- sh -c '[ "$(docker exec -e MYSQL_PWD="$1" ftsm-p0-mysql mysql -uroot -N -e "SELECT COUNT(*) FROM seckill_events WHERE end_time >= NOW(6) AND start_time <= NOW(6) + INTERVAL 30 MINUTE" '"$DB"')" = 0 ]' _ "$DB_PASSWORD"
 
 say "## precheck after the event ended (must PASS)"
 run python3 scripts/p2/precheck_cutover.py --mysql "temp:$DB" --redis temp

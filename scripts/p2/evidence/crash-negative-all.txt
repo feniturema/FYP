@@ -1,0 +1,15 @@
+# Tracking tokens (UUIDs) are replaced by consistent pseudonyms tok-<sha256[:12]>; the mapping is the same in every file.
+# Exhaustive negative control on the revised-A6 data of commit e00b351 (event 1): for EVERY request that
+# received HTTP 202, drop its order from crash-orders.tsv and rerun verify_crash.py; each run must FAIL (rc 1).
+# Command per token T: grep -v T crash-orders.tsv > minus.tsv; verify_crash.py --requests crash-requests.txt --orders minus.tsv --outbox crash-outbox.tsv --stock 50 --sold-count 10
+token tok-63a25029aa6a -> rc=1; 3 problems, first: PROBLEM: 202 token tok-63a25029aa6a (user 2000000000) has NO order
+token tok-ade385e29a7e -> rc=1; 3 problems, first: PROBLEM: 202 token tok-ade385e29a7e (user 2000000001) has NO order
+token tok-d4e02d7bcd25 -> rc=1; 3 problems, first: PROBLEM: 202 token tok-d4e02d7bcd25 (user 2000000002) has NO order
+token tok-2e7167bf7399 -> rc=1; 3 problems, first: PROBLEM: 202 token tok-2e7167bf7399 (user 2000000003) has NO order
+token tok-919e4e2223ea -> rc=1; 3 problems, first: PROBLEM: 202 token tok-919e4e2223ea (user 2000000004) has NO order
+token tok-985771525b2a -> rc=1; 3 problems, first: PROBLEM: 202 token tok-985771525b2a (user 2000000005) has NO order
+token tok-5d303d427da1 -> rc=1; 3 problems, first: PROBLEM: 202 token tok-5d303d427da1 (user 2000000006) has NO order
+token tok-ec719cb70d20 -> rc=1; 3 problems, first: PROBLEM: 202 token tok-ec719cb70d20 (user 2000000007) has NO order
+token tok-5dc918da3974 -> rc=1; 3 problems, first: PROBLEM: 202 token tok-5dc918da3974 (user 2000000008) has NO order
+token tok-efd0a8b3bae0 -> rc=1; 3 problems, first: PROBLEM: 202 token tok-efd0a8b3bae0 (user 2000000009) has NO order
+result: 10 of 10 removals detected (want 10 of 10)
