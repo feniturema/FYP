@@ -59,11 +59,11 @@
 | 新增 | `C/search/SearchDtos.java` | `ProductView`、`ItemView`、`StockView`、`FlashSaleView`、`ProductDetailView`（§6.6） | A2 |
 | 新增 | `C/search/CatalogSearchService.java` | `List<ProductView> searchProducts(String keyword, BigDecimal maxPrice, String category, int limit)`；`List<ItemView> searchItems(String keyword, BigDecimal maxPrice, int limit)` | A2 |
 | 修改 | `C/repository/SeckillEventRepository.java` | `List<SeckillEvent> findByProductIdAndStatus(Long productId, SeckillEvent.Status status)` | A2 |
-| 新增 | `mcp-server/pom.xml` | §6.5 | A1 |
+| 新增 | `mcp-server/pom.xml` | §6.5；增加 test scope 的 `flyway-core` 与 `flyway-mysql`，仅供 `McpServerIT` 在 Testcontainers 数据库中执行 backend 的迁移 | A1 |
 | 新增 | `mcp-server/Dockerfile` | 与 backend 的 Dockerfile 结构相同；runtime 阶段执行 `apt-get install -y --no-install-recommends curl`，供健康检查使用 | A4 |
 | 新增 | `mcp-server/src/main/resources/application.yml` | §7.2 | A4 |
 | 新增 | `M/McpServerApplication.java`、`M/ShopTools.java`、`M/ToolsConfig.java` | §6.5 | A2、A5 |
-| 新增 | `MT/ShopToolsTest.java`、`MT/McpServerIT.java` | §8 | A2 |
+| 新增 | `MT/ShopToolsTest.java`、`MT/McpServerIT.java` | §8；`McpServerIT` 必须先完成迁移再启动 mcp-server | A2 |
 | 修改 | `backend/pom.xml` | 新增 `spring-ai-starter-model-deepseek`、`resilience4j-spring-boot3`、`resilience4j-reactor`、`spring-boot-starter-aop`、`io.modelcontextprotocol.sdk:mcp`（版本由 Spring AI BOM 管理，为 0.18.3 **[实验]**）、`org.springframework.ai:spring-ai-mcp`（`SyncMcpToolCallbackProvider` 所在的模块）。**不引入** `spring-ai-starter-mcp-client`（它的自动配置在 server 不可达时会导致启动失败 **[实验]**） | A1 |
 | 新增 | `J/config/LlmProviderEnvironmentPostProcessor.java`；`backend/src/main/resources/META-INF/spring.factories` | §6.2 | A2 |
 | 新增 | `J/config/AssistantConfig.java` | bean：`ChatMemory`（使用 `BoundedChatMemoryRepository`）、`ToolCallRecorder` | A2 |
@@ -94,6 +94,7 @@
 | 修改 | `frontend/package.json`、`frontend/package-lock.json` | devDependency `vitest@2.1.9`（peerDependency 为 `vite ^5.0.0`，与当前的 vite 5 兼容 **[源码：npm 元数据]**）；script `"test": "vitest run"` | A3 |
 | 修改 | `frontend/nginx.conf` | SSE 的 location（§7.4） | A8 |
 | 新增 | `scripts/p4b/mcp_probe.py` | 只用 Python 标准库实现的 MCP streamable HTTP 客户端，执行 `initialize`、`tools/list`、`tools/call` | A5 |
+| 新增 | `scripts/p4b/get_test_token.py` | 调用验收环境的 `/api/auth/login`，只向 stdout 输出 token；非 2xx、响应缺少 token 或 token 为空时退出非 0；禁止输出密码和完整响应 | A4、A6、A8 |
 | 新增 | `scripts/p4b/acceptance.sh` | 依次执行 A4–A10 | A4–A10 |
 | 新增 | `scripts/p4b/sse_timing.py` | 只用标准库：发 POST 读取 SSE，记录每个 `token` 事件的到达时间，输出 JSON `{firstMs,lastMs,count}` | A8 |
 | 新增 | `scripts/p4b/evidence/.gitkeep` | 验收证据目录 | — |
@@ -453,7 +454,43 @@ location /api/assistant/stream {
 
 ### 7.6 验收环境
 
-做法同 P2 §7.4：项目名 `ftsm-p4b-acc`，使用显式的 `--env-file`，端口按 §2，后端日志持续写入文件。env 文件中包含 `MCP_DB_PASSWORD=$(openssl rand -hex 24)`、`LLM_PROVIDER` 不设置，以及 `SPRING_PROFILES_ACTIVE=dev`（用于启用调试接口）。
+做法同 P2 §7.4：项目名 `ftsm-p4b-acc`，使用显式的 `--env-file`，端口按 §2，后端日志持续写入文件。验收环境必须显式写入以下变量（这些值只用于一次性的本地 compose 项目，不得复制到生产环境）：
+
+```dotenv
+MCP_DB_PASSWORD=<openssl rand -hex 24 的结果>
+LLM_PROVIDER=none
+SPRING_PROFILES_ACTIVE=dev
+MAIL_ENABLED=false
+SEED_ENABLED=true
+SEED_ADMIN_EMAIL=p4b-admin@ukm.edu.my
+SEED_ADMIN_PASSWORD=p4b-local-admin-password
+```
+
+`SEED_ENABLED=true` 用于让 backend 的现有 `DataSeeder` 创建一个已验证的临时管理员，避免验收流程依赖邮件或 OTP。启动完成后，所有需要鉴权的命令先执行：
+
+```bash
+export TOKEN="$(python3 scripts/p4b/get_test_token.py \
+  --base http://127.0.0.1:58080 \
+  --email p4b-admin@ukm.edu.my \
+  --password p4b-local-admin-password)"
+test -n "$TOKEN"
+```
+
+脚本必须通过 `POST /api/auth/login` 获取 token；stdout 只能输出这个 token，stderr 和验收日志不得打印密码、完整响应或 token。A4、A6、A8、E2 都使用这个 `TOKEN`；如果登录失败，验收立即停止，不得把空 token 当作鉴权成功。
+
+`scripts/p4b/acceptance.sh` 必须在 A4 的健康检查通过后自动执行同一条 `get_test_token.py` 命令并 `export TOKEN`，再依次执行 A4–A10；单独运行 A6、A8 或 E2 时，如果 `TOKEN` 未设置，脚本必须返回 2 并提示先执行 token 步骤。证据文件只能记录 HTTP 状态、断言结果和脱敏后的响应字段。
+
+### 7.7 `McpServerIT` 的确定性迁移顺序
+
+`mcp-server` 的运行配置保持 `spring.flyway.enabled=false`，因为生产运行时 schema 由 backend 负责迁移，mcp-server 只做 `ddl-auto=validate`。因此 `McpServerIT` 必须在测试代码中显式完成以下顺序，不能依赖 mcp-server 的 Spring 自动配置：
+
+1. 启动 Testcontainers MySQL，并取得 root JDBC URL、用户名和密码。
+2. 用 mcp-server 的 test-scoped Flyway 依赖创建 Flyway 实例，`locations` 指向仓库根目录的 `backend/src/main/resources/db/migration`，执行 `migrate()`；路径解析必须先尝试 `${user.dir}/../backend/...`，再尝试 `${user.dir}/backend/...`，两者都不存在时立即失败并打印实际路径。
+3. 用 root 连接写入测试所需的产品、item、库存和订单种子数据；种子 ID 必须固定，测试结束由容器销毁。
+4. 通过 `@DynamicPropertySource` 把 `DB_URL`、`MCP_DB_USERNAME`、`MCP_DB_PASSWORD`、`REDIS_HOST`、`REDIS_PORT` 指向测试容器，再启动 mcp-server Spring context。
+5. 断言 context 启动时没有执行 Flyway，`ddl-auto=validate` 成功；随后执行 MCP `initialize`、`tools/list` 和 `tools/call`。
+
+测试不得使用宿主机已有数据库、宿主机已有 Redis、compose 项目或工作区的 `.env`。验收日志必须记录迁移目录的绝对路径、Flyway 已执行的版本集合和 seed ID，但不得记录数据库密码。
 
 ## 8. 测试清单（自动化测试全部离线、确定，不需要真实的模型）
 
@@ -471,7 +508,7 @@ location /api/assistant/stream {
 | `AssistantResilienceIT` | 用 `@TestConfiguration` 提供一个可控的 stub `ChatModel`（模式：正常 / 抛异常 / 延迟 35 s）。覆盖：连续 10 次异常后 `/actuator/circuitbreakers` 中 `llm` 为 `OPEN`，并且下一次请求立即（< 500 ms）返回 fallback；1 秒内 25 个并发请求中至少 5 个拿到 fallback（被限流）；超过 30 s 超时时返回 fallback |
 | `AssistantToolFlowIT` | stub `ChatModel` 第一次返回调用 `my_orders` 的工具调用，第二次返回文本。断言：调试记录（直接查 `ToolCallRecorder`）中有 `my_orders`，key 为 `userA:conv1`；`OrderService.listForBuyer` 收到的参数是 userA；userB 的会话中没有任何记录 |
 | `ShopToolsTest`（mcp-server） | 5 个工具在正常输入、不存在的 id、keyword 非法时的行为（mock 仓库与 Redis） |
-| `McpServerIT`（mcp-server） | Testcontainers MySQL：用 `spring.flyway.locations=filesystem:../backend/src/main/resources/db/migration` 以 root 执行迁移，再写入种子数据；Redis 用 Testcontainers。启动 server 后，用 Java `McpClient` 执行 `initialize` 和 `listTools`，断言 5 个工具名，并且 `callTool get_stock` 的结果与种子数据一致 |
+| `McpServerIT`（mcp-server） | 严格按 §7.7：Testcontainers MySQL 由 test-scoped Flyway 以 root 执行 backend 的 V1–V3 迁移，路径按两个候选路径解析并记录绝对路径；再写入固定 ID 的种子数据；Redis 用 Testcontainers；通过 `@DynamicPropertySource` 指向两个容器。启动 server 后断言其 Flyway 未执行、`ddl-auto=validate` 成功，再用 Java `McpClient` 执行 `initialize` 和 `listTools`，断言 5 个工具名，并且 `callTool get_stock` 的结果与种子数据一致 |
 
 ## 9. 验收矩阵
 
@@ -482,7 +519,7 @@ location /api/assistant/stream {
 | A1 | 构建 | — | `$REPO` | `./mvnw -B verify` | BUILD SUCCESS（3 个模块） | PR | 自动 | 是 |
 | A2 | 单元测试与 IT | Docker | `$REPO` | 已包含在 A1 中 | §8 中的所有类都已执行，并且 0 failures / 0 errors / 0 skipped | reports | 自动 | 是 |
 | A3 | 报告检查与前端 | — | `$REPO`；`$REPO/frontend` | `python3 scripts/ci/check_test_reports.py --expect scripts/ci/expected-tests.json`；`npm ci && npm test && npm run build` | 都成功 | PR | 自动 | 是 |
-| A4 | 没有 key 时整套服务能启动 | §7.6 | `$REPO` | `"${DC[@]}" up -d --build`；`wait_http http://127.0.0.1:58080/actuator/health 300`；`"${DC[@]}" ps --format json` | 所有服务都是 healthy；`curl -fsS -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"message":"hi"}' 127.0.0.1:58080/api/chat` 的 `reply` 中包含 `not configured` | `scripts/p4b/evidence/a4.txt` | 自动 | 是 |
+| A4 | 没有 key 时整套服务能启动 | §7.6 | `$REPO` | `"${DC[@]}" up -d --build`；`wait_http http://127.0.0.1:58080/actuator/health 300`；`"${DC[@]}" ps --format json`；按 §7.6 执行 `get_test_token.py` 设置 `TOKEN`；再执行 `curl -fsS -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"message":"hi"}' 127.0.0.1:58080/api/chat` | 所有服务都是 healthy；登录 token 非空；响应 `reply` 中包含 `not configured` | `scripts/p4b/evidence/a4.txt` | 自动 | 是 |
 | A5 | MCP 协议 | A4 | `$REPO` | `python3 scripts/p4b/mcp_probe.py --url http://127.0.0.1:58082/mcp --call get_stock '{"productId":1}'` | 列出的工具恰好是那 5 个；`get_stock` 的结果包含 `totalStock` | `…/a5.json` | 自动 | 是 |
 | A6 | backend 能发现工具 | A4（dev profile） | `$REPO` | `curl -fsS -H "Authorization: Bearer $TOKEN" 127.0.0.1:58080/api/assistant/debug/tools` | 工具名集合 = §3 中的 6 个 | `…/a6.json` | 自动 | 是 |
 | A7 | MCP 中断与恢复 | A6 | `$REPO` | `"${DC[@]}" stop mcp-server && "${DC[@]}" restart backend`；`wait_http … 300`；查询 `debug/tools`；然后 `"${DC[@]}" start mcp-server`；最多等 90 s，轮询 `debug/tools` | 停止后 backend 仍然 healthy，工具列表只有 `["my_orders"]`，日志中有 `MCP server unavailable`；恢复后 90 s 内工具列表重新变为 6 个 | `…/a7.txt` | 自动 | 是 |

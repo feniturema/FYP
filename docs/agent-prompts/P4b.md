@@ -22,6 +22,8 @@
 - 流式接口的鉴权：**先**写真实 Tomcat 的 `AssistantStreamSecurityIT`，只有当“合法 token”用例返回 403 时才修改 `JwtAuthFilter`；不得用 MockMvc 来证明这一点；不得使用 `dispatcherTypeMatchers(ASYNC).permitAll()`。
 - 熔断和限流的测试使用可控的 stub ChatModel，不调用付费服务。
 - 工具记录覆盖全部 6 个工具，评测集的 `expected_tools` 只能取自这 6 个。
+- 验收环境必须按执行包 §7.6 设置 `SEED_ENABLED=true`、固定的临时管理员账号，并用 `scripts/p4b/get_test_token.py` 通过 `/api/auth/login` 生成 `TOKEN`；不得使用空 token、手写 JWT、邮件 OTP 或宿主机数据库用户。
+- `mcp-server` 的运行配置保持 `spring.flyway.enabled=false`。`McpServerIT` 按执行包 §7.7 先用 test-scoped Flyway 对 Testcontainers MySQL 执行 backend 的 V1–V3，再通过 `@DynamicPropertySource` 启动 mcp-server；不得把生产配置改成自动迁移。
 - 升级注意：已有的 `.env` 必须加上 `LLM_PROVIDER=deepseek`，写进 CHANGELOG 和 README。
 - PR 标题：`P4b: MCP server, Spring AI assistant with SSE and Resilience4j (v0.10.0)`
 

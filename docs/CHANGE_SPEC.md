@@ -79,6 +79,7 @@ flowchart LR
 
 规则：
 
+- P0 的唯一代码入口是已经合并文档分支后的 `main`。在 `origin/main` 同时满足 CHANGELOG 含 v0.4.6、`docs/phases/P0.md` 存在、且文档迁移无冲突之前，agent 不得创建 P0 分支、创建 baseline tag 或修改代码。
 - 按上表顺序**串行**执行，一次只开一个阶段的 PR。
 - **P2 与 P4a 不能并行**：P4a 会移动 P2 要修改的实体文件。
 - P3 中由人进行的正式测量可以与后续阶段并行，单独提交。

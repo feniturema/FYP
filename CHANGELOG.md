@@ -5,6 +5,19 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [Unreleased] — 2026-10-04 — Specification quality corrections
+
+### Fixed
+- P0 `wait_cmd` now validates its invocation and bounds each retry with coreutils `timeout`, so a blocked readiness command cannot exceed the declared deadline.
+- P4b now defines a deterministic seeded test administrator and `get_test_token.py` flow for all authenticated acceptance requests.
+- P4b `McpServerIT` now has an explicit test-only Flyway migration sequence and container property wiring while production mcp-server keeps Flyway disabled.
+- The master spec and agent prompts now make the document-branch merge a hard P0 gate.
+
+### Not executed
+- These are documentation-only corrections. No application build or integration acceptance was run.
+
+---
+
 ## [v0.4.6] — 2026-10-03 — Per-phase execution packages
 
 Authored by Claude Code. Docs only (`docs/`, `README.md`, `HANDOFF.md`, `CHANGELOG.md`); no
