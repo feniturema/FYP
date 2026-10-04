@@ -133,12 +133,12 @@ write_run_json
 echo "run.sh: event $event_id (product $product_id) is ACTIVE" >&2
 
 # Step 3: k6.
-k6_env=(BASE_URL="$base" EVENT_ID="$event_id" JWT_SECRET="$secret" STOCK="$stock" USER_BASE="$user_base"
-        REJECT_STATUS="$reject_status" SUMMARY_PATH="$dir/summary.json" RUN_ID="$run_id" K6_VERSION="$k6_version")
+k6_env=("BASE_URL=$base" "EVENT_ID=$event_id" "JWT_SECRET=$secret" "STOCK=$stock" "USER_BASE=$user_base"
+        "REJECT_STATUS=$reject_status" "SUMMARY_PATH=$dir/summary.json" "RUN_ID=$run_id" "K6_VERSION=$k6_version")
 if [[ $scenario == throughput ]]; then
-  k6_env+=(RATE="$rate" RAMP="$ramp" STEADY="$steady")
+  k6_env+=("RATE=$rate" "RAMP=$ramp" "STEADY=$steady")
 else
-  k6_env+=(BUYERS="$buyers" VUS="$vus")
+  k6_env+=("BUYERS=$buyers" "VUS=$vus")
 fi
 k6_rc=0
 env "${k6_env[@]}" "$K6" run --quiet --no-color "$REPO/loadtest/$scenario.js" > "$dir/k6.log" 2>&1 || k6_rc=$?

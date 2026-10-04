@@ -9,7 +9,7 @@ import { recordBuy, count, resultCounts, textReport, REJECT_STATUS } from './lib
 
 const BASE_URL = __ENV.BASE_URL;
 const EVENT_ID = __ENV.EVENT_ID;
-const JWT_SECRET = __ENV.JWT_SECRET;
+const SIGNING_KEY = __ENV.JWT_SECRET;
 const STOCK = Number(__ENV.STOCK);
 const BUYERS = Number(__ENV.BUYERS);
 const VUS = Number(__ENV.VUS || BUYERS);
@@ -39,7 +39,7 @@ export const options = {
 export default function () {
   const userId = USER_BASE + exec.scenario.iterationInTest;
   const res = http.post(`${BASE_URL}/api/seckill/${EVENT_ID}/buy`, null, {
-    headers: { Authorization: `Bearer ${studentToken(userId, JWT_SECRET)}` },
+    headers: { Authorization: `Bearer ${studentToken(userId, SIGNING_KEY)}` },
     tags: { name: 'seckill_buy' },
   });
   recordBuy(res);

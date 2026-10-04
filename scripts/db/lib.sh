@@ -218,10 +218,12 @@ stop_temp_redis() {
 # start_backend JAR DB PORT LOG   (sets BACKEND_PID; returns wait_http's code)
 start_backend() {
   local jar=$1 db=$2 port=$3 log=$4
-  env DB_URL="jdbc:mysql://127.0.0.1:3307/$db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC" \
-      DB_USERNAME=root DB_PASSWORD="$DB_PASSWORD" REDIS_HOST=127.0.0.1 REDIS_PORT=6380 \
-      JWT_SECRET="$JWT_SECRET" SERVER_PORT="$port" MAIL_ENABLED=false LLM_API_KEY= \
-      java -jar "$jar" > "$log" 2>&1 &
+  local -a envs=(
+    "DB_URL=jdbc:mysql://127.0.0.1:3307/$db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+    DB_USERNAME=root "DB_PASSWORD=$DB_PASSWORD" REDIS_HOST=127.0.0.1 REDIS_PORT=6380
+    "JWT_SECRET=$JWT_SECRET" "SERVER_PORT=$port" MAIL_ENABLED=false LLM_API_KEY=
+  )
+  env "${envs[@]}" java -jar "$jar" > "$log" 2>&1 &
   BACKEND_PID=$!
   wait_http "http://127.0.0.1:$port/actuator/health" 180 "$BACKEND_PID" "$log"
 }

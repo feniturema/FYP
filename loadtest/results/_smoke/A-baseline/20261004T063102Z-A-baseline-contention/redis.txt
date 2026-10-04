@@ -1,3 +1,0 @@
-key	value
-seckill:stock:2	0
-scard seckill:bought:2	5
