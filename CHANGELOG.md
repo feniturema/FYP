@@ -60,16 +60,28 @@ MySQL 8.0.46-0ubuntu0.24.04.4 (private datadir, port 3307), Redis 7.0.15 (port 6
 | A9 | pass | H2 profile healthy on 8081, rc=0, no `Migrating schema` / Flyway lines in log |
 | A10 | pass | `scripts/e2e_test.py` on P0 jar: `8/8 checks passed` |
 | A11 | pass | `k6 v2.3.0`; tampered tarball → rc=5 |
-| A12 | pass | baseline throughput: rc=0, requestRps=10, dropped=0, UNPARSEABLE=0, orders=buyers=accepted=254 |
+| A12 | pass | baseline throughput: rc=0, requestRps=10.05, dropped=0, UNPARSEABLE=0, orders=buyers=accepted=255 |
 | A13 | pass | baseline contention: rc=0, ACCEPTED=5, SOLD_OUT=15, ALREADY_BOUGHT=0; wrong-STOCK control run → k6 rc=99 |
 | A14 | pass | orders=5, buyers=5, Redis remaining stock 0 |
 | A15 | pass | P0 jar on the baseline-built smoke DB (baselined): contention rc=0 (5/15/0); `summarize.py` rc=0 |
 | A16 | pass | `docker compose config -q` rc=0 (Compose v5.3.1 CLI); 4 default published ports |
 | A17 | pass | changed files ⊆ P0 §4; forbidden-path diff empty |
-| A18 | pass | secret scan of `origin/main...HEAD` empty |
+| A18 | pass | secret scan of `origin/main...HEAD` empty (env vars are passed as quoted `"NAME=$value"` array words) |
 | A19 | pass (local mode) | worktree removed, temp mysqld/redis stopped, `$P0_TMP` deleted, ports free; no containers were created (no Docker daemon) |
 
-Smoke numbers prove the tooling only; they are not performance results.
+Smoke numbers prove the tooling only; they are not performance results. All results above are
+from the final scripts (run directories record `gitSha` of the commit under test).
+
+### Deviations from `docs/phases/P0.md` (details in the P0 PR)
+- Local mode installs `mysql-server-core-8.0` + `mysql-client-8.0` (after `apt-get update`) instead of
+  `mysql-server-8.0`, so no system MySQL service or `/var/lib/mysql` is created; Ubuntu revision
+  `8.0.46-0ubuntu0.24.04.4` (the `.3` debs are gone from the mirror). The temp `mysqld` gets
+  `--secure-file-priv=$P0_TMP/mysql-files` because the packaged default directory does not exist.
+- k6 scripts carry extra always-true (`count>=0`) thresholds so `handleSummary` can report every
+  per-result count; the specified thresholds are unchanged.
+- `git diff --check` reports CRLF in the generated `backend/mvnw.cmd` (required for a Windows batch
+  file) and a trailing tab in fingerprint TSV rows (empty `create_options` column).
+- `k6.log` in run directories is not committed (existing `*.log` ignore rule).
 
 ### Not executed / external follow-ups
 - A1 remote tag: pending the maintainer push above.
