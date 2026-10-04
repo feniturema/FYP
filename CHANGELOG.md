@@ -30,7 +30,10 @@ migration was needed.
   P1 jar on an empty one, then `compare_schemas.sh`.
 - `scripts/p1/pinning_report.sh`: groups `-Djdk.tracePinnedThreads=short` reports by top frame.
 - `scripts/db/evidence/p1/`: effective versions, fresh/legacy `verify_schema` output, fingerprints,
-  empty diff, pinning report and the pinning control run.
+  empty diff, pinning report and the pinning control run; `dependency-versions-before-after.txt`
+  (P0 and P1 effective POM / dependency reports side by side); `tested-commit.txt` (the commit
+  A1–A8 ran on, why its runs record `gitDirty=true`, and blob ids proving no test-relevant file
+  changed afterwards).
 - Smoke results: `loadtest/results/_smoke/P1-vt-on/`, `P1-vt-off/`, `P1-vt-on-pinning/`.
 
 ### Verified (`docs/phases/P1.md` §9; local MySQL mode, no Docker daemon)
@@ -49,7 +52,11 @@ migration was needed.
 
 ### Not executed / follow-ups
 - A9–A11 (image build, container start/API/Swagger, in-container e2e) need a machine with
-  Docker ≥ 24; the P1 PR stays draft until they pass.
+  Docker ≥ 24; the P1 PR stays draft until they pass. The step-by-step procedure (env file, build,
+  base-image check, health wait, API/Swagger, e2e log capture, `down -v`) is in the P1 PR
+  description; its evidence goes to `scripts/db/evidence/p1/container/`.
+- `git diff --check origin/main...HEAD` is not clean: trailing tabs in the two P1 fingerprint TSVs
+  (empty `create_options` field). No other findings.
 
 ---
 
