@@ -133,7 +133,7 @@ PY
 
 k6_contention() {  # k6_contention <eventId> <stock> <buyers> <vus> <userBase> <summary.json> <log>
   env BASE_URL="$BASE" EVENT_ID="$1" JWT_SECRET="$JWT_SECRET" STOCK="$2" BUYERS="$3" VUS="$4" \
-      USER_BASE="$5" REJECT_STATUS=409 SUMMARY_PATH="$6" RUN_ID="acc-$(date +%s)" \
+      USER_BASE="$5" REJECT_STATUS=409 SUMMARY_PATH="$6" RUN_ID="acc-$(date +%s)" REQUEST_LOG="${REQUEST_LOG:-0}" \
       K6_VERSION="$("$K6" version | head -n 1)" \
       "$K6" run --quiet --no-color "$REPO/loadtest/contention.js" > "$7" 2>&1
 }
@@ -193,13 +193,15 @@ a5() {
 }
 
 a6() {
+  # Revised A6 (docs/phases/P2.md §9, 2026-10-04): reconciled request by request with
+  # scripts/p2/verify_crash.py instead of comparing counts.
   local eid; eid=$(new_event 50 A6-crash)
   echo "A6 event $eid"
   local summary=$P2_TMP/a6-summary.json k6log=$LOGS/A6-k6.log
   # 200 buyers on ONE VU: ~200 sequential requests (~1.5-2.5 s at local latency), so the kill
   # reliably lands while k6 is still sending. Kill as soon as the first unit is taken; poll Redis
   # in a tight loop (wait_cmd's 2 s retry interval is longer than the whole run).
-  k6_contention "$eid" 50 200 1 2000000000 "$summary" "$k6log" &
+  REQUEST_LOG=1 k6_contention "$eid" 50 200 1 2000000000 "$summary" "$k6log" &
   local k6pid=$! deadline=$(( SECONDS + 60 )) r=
   until r=$(redis_target_cli "$REDIS_T" GET "seckill:stock:{$eid}" | tr -d '\r') && [[ $r =~ ^[0-9]+$ ]] && (( r < 50 )); do
     (( SECONDS < deadline )) || { echo "A6: no ACCEPTED within 60s" >&2; return 1; }
@@ -214,20 +216,49 @@ a6() {
   rm -f "$STATE/stopped_backend"
   wait "$k6pid" || true          # connection errors on the k6 side are allowed
   health 300
-  restart_backend_log "$killed_at"
-  loadtest/drain.sh outbox --event "$eid" --mysql "$MYSQL_T" --timeout 180
+  local recovered_at=$SECONDS; restart_backend_log "$killed_at"
+  # Committed outbox rows must be processed within the drain timeout (180 s) after recovery.
+  local drain_rc=0
+  loadtest/drain.sh outbox --event "$eid" --mysql "$MYSQL_T" --timeout 180 || drain_rc=$?
+  local drain_s=$(( SECONDS - recovered_at ))
   verify_event "$eid" > "$P2_TMP/a6-verify.tsv"
-  local accepted; accepted=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["meta"]["accepted"])' "$summary")
-  local orders buyers dups
-  orders=$(tsv_get "$P2_TMP/a6-verify.tsv" orders); buyers=$(tsv_get "$P2_TMP/a6-verify.tsv" buyers)
-  dups=$(tsv_get "$P2_TMP/a6-verify.tsv" duplicate_buyers)
+  grep -oE 'REQ userId=[0-9]+ status=[0-9]+ result=[A-Z_]+ token=[^ "]+' "$k6log" > "$E/crash-requests.txt" || true
+  mysql_target_cli "$MYSQL_T" --batch -e "SELECT tracking_token, buyer_id, status FROM orders
+    WHERE source_type='SECKILL' AND seckill_event_id=$eid ORDER BY id" > "$E/crash-orders.tsv"
+  mysql_target_cli "$MYSQL_T" --batch -e "SELECT order_id, user_id, status,
+    DATE_FORMAT(created_at, '%H:%i:%s.%f') AS created_at, DATE_FORMAT(sent_at, '%H:%i:%s.%f') AS sent_at
+    FROM order_outbox WHERE event_id=$eid ORDER BY id" > "$E/crash-outbox.tsv"
+  local sold; sold=$(tsv_get "$P2_TMP/a6-verify.tsv" sold_count)
+  local -a vc=(python3 scripts/p2/verify_crash.py --requests "$E/crash-requests.txt" --orders "$E/crash-orders.tsv"
+               --outbox "$E/crash-outbox.tsv" --stock 50 --sold-count "$sold")
+  local check_rc=0 neg_rc=0 victim
+  # Negative control: drop the order of one request that DID receive 202; the check must fail.
+  victim=$(sed -n 's/.* status=202 result=ACCEPTED token=\([^ ]*\).*/\1/p' "$E/crash-requests.txt" | head -n 1)
+  grep -v -- "$victim" "$E/crash-orders.tsv" > "$P2_TMP/a6-orders-minus-one.tsv"
   {
-    printf 'event_id\tk6_running_at_kill\tkilled_at\taccepted_202\n%s\t%s\t%s\t%s\n' "$eid" "$running" "$killed_at" "$accepted"
+    echo "commit under test: $(git rev-parse HEAD); event $eid; SIGKILL at $killed_at; k6 still sending: $running"
+    echo "drain after recovery: rc=$drain_rc in ${drain_s}s (limit 180 s)"
+    echo
+    echo "\$ scripts/p2/verify_crash.py --requests crash-requests.txt --orders crash-orders.tsv --outbox crash-outbox.tsv --stock 50 --sold-count $sold"
+    "${vc[@]}" || check_rc=$?
+    echo "rc=$check_rc (want 0)"
+    echo
+    echo "## negative control: same data with the order of 202 token $victim removed"
+    python3 scripts/p2/verify_crash.py --requests "$E/crash-requests.txt" --orders "$P2_TMP/a6-orders-minus-one.tsv" \
+      --outbox "$E/crash-outbox.tsv" --stock 50 --sold-count "$sold" || neg_rc=$?
+    echo "rc=$neg_rc (want 1)"
+    echo
+    echo "## verify_crash.py --self-test"
+    python3 scripts/p2/verify_crash.py --self-test | tail -n 1
+  } > "$E/crash-verify.txt" 2>&1
+  {
+    printf 'event_id\tk6_running_at_kill\tkilled_at\tdrain_rc\tdrain_seconds\tverify_rc\tnegative_control_rc\n'
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$eid" "$running" "$killed_at" "$drain_rc" "$drain_s" "$check_rc" "$neg_rc"
     cat "$P2_TMP/a6-verify.tsv"
     echo "k6 result counts: $(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["meta"]["results"])' "$summary")"
   } > "$E/crash.tsv"
-  cat "$E/crash.tsv"
-  [[ $running == yes && $orders == "$accepted" && $orders -le 50 && $orders == "$buyers" && $dups == 0 ]]
+  cat "$E/crash.tsv" "$E/crash-verify.txt"
+  [[ $running == yes && $drain_rc == 0 && $drain_s -le 180 && $check_rc == 0 && $neg_rc == 1 && -n $victim ]]
 }
 
 a7() {
