@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # P2 acceptance A2 -> A12 in the isolated compose project ftsm-p2-acc (docs/phases/P2.md §7.4, §9).
 #
-#   scripts/p2/acceptance.sh            # optional env: P2_TMP (reused if set), K6 (k6 2.3.0 binary)
+#   scripts/p2/acceptance.sh   # optional env: P2_TMP (reused if set), K6 (k6 2.3.0 binary),
+#                              # P2_EVIDENCE_DIR (default scripts/p2/evidence), ACCEPTANCE_STEPS (subset)
 #
 # Every scenario runs fail-fast in its own subshell and writes its evidence to scripts/p2/evidence/.
 # A failing scenario does not stop the run: the EXIT trap always restores what a scenario broke
@@ -16,7 +17,9 @@ cd "$REPO"
 # shellcheck source=../db/lib.sh
 source "$REPO/scripts/db/lib.sh"
 
-E=$REPO/scripts/p2/evidence
+# P2_EVIDENCE_DIR lets a run write outside the worktree (copy into scripts/p2/evidence afterwards),
+# so run.sh records gitDirty=false for the commit under test.
+E=${P2_EVIDENCE_DIR:-$REPO/scripts/p2/evidence}
 mkdir -p "$E"
 P2_TMP=${P2_TMP:-$(mktemp -d /tmp/ftsm-p2.XXXXXX)}
 export P2_TMP
