@@ -47,7 +47,7 @@ migration was needed.
 | A6 | pass | `VIRTUAL_THREADS=true`: e2e 8/8 (20/40/0); contention run rc 0 (5/15/0, orders 5, Redis 0); request threads `tomcat-handler-N` |
 | A7 | pass | `VIRTUAL_THREADS=false`: same results; request threads `http-nio-8080-exec-N` |
 | A8 | produced | 0 pinned stacks; a control program proves the flag and parser detect pinning |
-| A9–A11 | **not executed** | no Docker daemon; both pinned image tags exist on Docker Hub (metadata only) |
+| A9–A11 | **not executed** | no Docker daemon in the P1 environment; no container was built or started |
 | A12 | not executed | nothing to clean: the `ftsm-p1-acc` compose project was never created |
 
 ### Not executed / follow-ups
