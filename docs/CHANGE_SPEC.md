@@ -4,6 +4,7 @@
 
 - 每个阶段的**完整执行包**：`docs/phases/<阶段>.md`
 - 每个阶段可以直接复制给 agent 的 **prompt**：`docs/agent-prompts/<阶段>.md`
+- P0 的最终开工 prompt：[`agent-prompts/START-P0.md`](agent-prompts/START-P0.md)
 - 设计理由（为什么这样改）：[`UPGRADE_PLAN.md`](UPGRADE_PLAN.md)
 
 本文与 `UPGRADE_PLAN.md` 冲突时，以本文和各阶段执行包为准。
@@ -95,7 +96,7 @@ flowchart LR
 
 | 组件 | 版本 | 依据 |
 | --- | --- | --- |
-| JDK 运行时镜像 | `eclipse-temurin:21.0.12.1_1-jre-noble`（21 LTS，撰写时最新的补丁标签） | **[源码：Docker Hub]** |
+| JDK 运行时镜像 | 固定为 `eclipse-temurin:21.0.12.1_1-jre-noble`（21 LTS；需要升级时先修订规格和证据） | **[源码：Docker Hub]** |
 | 构建镜像 | `maven:3.9.11-eclipse-temurin-21-noble` | **[源码]** |
 | Maven Wrapper | 3.9.11，`distributionSha256Sum=0d7125e8c91097b36edb990ea5934e6c68b4440eef4ea96510a0f6815e7eeadb`，maven-wrapper-plugin 3.3.4，`only-script` 模式 | **[实验]**：生成和使用都已验证，sha256 与官方 sha512 交叉核对过 |
 | Spring Boot | P0：3.3.5；P1 起：3.5.16（3.5 线的最后一个版本，见 D1） | **[源码]** |
@@ -329,7 +330,7 @@ OS/arch, JDK, Docker, tool versions actually used
 | OTLP 转 Prometheus 时的指标命名 | dashboard 没有数据 | P6b A7（`check_metrics.py`） |
 | LGTM 0.35.0 的 Grafana 默认凭据和数据源类型 | 脚本返回 401 | P6b A6、A7 |
 | kind node v1.37.0 默认 StorageClass 的 provisioner | PVC 一直 Pending | P6b A10 |
-| kubeconform 能否拿到 1.37.0 的 schema | 静态校验无法执行 | P6b A9（有回退规则） |
+| kubeconform 能否拿到 1.37.0 的 schema | 静态校验无法执行；不得用其他 Kubernetes 版本替代 | P6b A9（无法取得时标记未执行并保持 draft） |
 | `busybox:1.37.0` 中 `wget` 的行为 | initContainer 卡住 | P6b A10 |
 | Docker 构建：多模块的缓存挂载、`ADD --checksum` | 镜像构建失败 | P4a A6、P6b A5 |
 

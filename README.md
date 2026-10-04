@@ -21,6 +21,7 @@ handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
 (Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s) and
 `docs/CHANGE_SPEC.md` for the master implementation spec, with one execution package per phase in
 `docs/phases/` and a ready-to-use agent prompt per phase in `docs/agent-prompts/`.
+Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start the staged implementation; it delegates P0 only and requires the documented evidence and draft-PR gate.
 
 - **Hybrid marketplace** — students list second-hand items (C2C) and an official
   admin store sells products (B2C) with flash-sale **SecKill** events.

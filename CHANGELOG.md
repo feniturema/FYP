@@ -12,6 +12,8 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 - P4b now defines a deterministic seeded test administrator and `get_test_token.py` flow for all authenticated acceptance requests.
 - P4b `McpServerIT` now has an explicit test-only Flyway migration sequence and container property wiring while production mcp-server keeps Flyway disabled.
 - The master spec and agent prompts now make the document-branch merge a hard P0 gate.
+- Added `docs/agent-prompts/START-P0.md`, a final kickoff prompt that delegates only P0 and requires evidence-based draft PR completion.
+- P1 and P6b now require fixed tool/image/schema versions; unavailable pinned artifacts stop the phase instead of silently falling back to newer versions.
 
 ### Not executed
 - These are documentation-only corrections. No application build or integration acceptance was run.

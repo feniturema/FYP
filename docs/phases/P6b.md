@@ -119,7 +119,7 @@
 | 新增 | `k8s/overlays/local-path/kustomization.yaml` | `resources: [../../]`；对 3 个 StatefulSet 的 `volumeClaimTemplates` 和 `uploads` PVC 用 JSON6902 patch，把 `storageClassName` 改为 `local-path`。只有当默认 StorageClass 的 provisioner 不是 `rancher.io/local-path` 时才使用 |
 | 新增 | `k8s/README.md` | §7.4 中的全部命令 |
 | 新增 | `scripts/p6b/install_tools.sh` | 下载 kind、kubectl、kubeconform，并按 §2 的 sha256 校验，安装到 `.tools/` |
-| 新增 | `scripts/p6b/validate_manifests.sh` | 执行 `kubectl kustomize k8s/ > $TMP/rendered.yaml`，然后 `kubeconform -strict -summary -kubernetes-version 1.37.0 $TMP/rendered.yaml`；如果下载 1.37.0 的 schema 失败，改用 kubeconform 能找到的最新版本，并在输出里注明 |
+| 新增 | `scripts/p6b/validate_manifests.sh` | 执行 `kubectl kustomize k8s/ > $TMP/rendered.yaml`，然后固定使用 `kubeconform -strict -summary -kubernetes-version 1.37.0 $TMP/rendered.yaml`；如果 1.37.0 的 schema 无法取得，A9 标记“未执行”，PR 保持 draft，不得改用其他版本冒充验证 |
 | 新增 | `scripts/p6b/kind_up.sh`、`scripts/p6b/kind_down.sh` | §7.4 |
 | 修改 | `scripts/db/lib.sh`、`loadtest/drain.sh`、`loadtest/run.sh` | 新增 MySQL 目标 `k8s:<namespace>`（通过 `kubectl -n <ns> exec -i mysql-0 -- env MYSQL_PWD=… mysql -uroot …` 访问），以及 drain 模式 `outbox-k8s`（outbox 积压用 SQL 查询；consumer lag 通过 `kubectl -n <ns> exec kafka-0 -- /opt/kafka/bin/kafka-consumer-groups.sh …` 查询） | A11 |
 | 新增 | `scripts/p6b/evidence/.gitkeep` | 证据目录 | — |
