@@ -2,6 +2,7 @@ package my.edu.ukm.ftsm.ecommerce.model;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.DynamicUpdate;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -13,6 +14,9 @@ import java.time.Instant;
  */
 @Entity
 @Table(name = "seckill_events")
+// Only changed columns are written: lifecycle/reconcile saves must never overwrite sold_count,
+// which SeckillEventRepository.incrementSold updates concurrently with a conditional UPDATE.
+@DynamicUpdate
 @Getter
 @Setter
 @NoArgsConstructor
@@ -50,4 +54,14 @@ public class SeckillEvent {
     @Column(nullable = false)
     @Builder.Default
     private boolean stockWarmed = false;
+
+    /** Orders persisted for this event; guarded by sold_count < seckill_stock (second line of defence). */
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer soldCount = 0;
+
+    /** True once the reconciler has given its final verdict (not necessarily "consistent"). */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean reconciled = false;
 }

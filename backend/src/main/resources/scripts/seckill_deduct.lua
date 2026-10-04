@@ -1,7 +1,7 @@
 -- Atomic SecKill stock deduction with per-user duplicate-purchase guard.
 --
--- KEYS[1] = seckill:stock:{eventId}   (string, integer remaining stock)
--- KEYS[2] = seckill:bought:{eventId}  (set of userIds who already succeeded)
+-- KEYS[1] = seckill:stock:{<eventId>}   (string, integer remaining stock; {} is a literal hash tag)
+-- KEYS[2] = seckill:bought:{<eventId>}  (set of userIds who already succeeded; same hash tag)
 -- ARGV[1] = userId
 --
 -- Returns:

@@ -63,8 +63,11 @@ public class OrderService {
         if (item.getSellerId().equals(buyerId)) {
             throw new BusinessException("You cannot buy your own listing.");
         }
-        item.setStatus(Item.Status.SOLD);
-        itemRepository.save(item);
+        // Conditional ACTIVE -> SOLD in this transaction: concurrent buyers cannot both win, and a
+        // later failure (save/settle) rolls the status back.
+        if (itemRepository.markSold(itemId, Item.Status.SOLD, Item.Status.ACTIVE) == 0) {
+            throw new BusinessException("Item is no longer available.");
+        }
         return Order.builder()
                 .buyerId(buyerId)
                 .sourceType(Order.SourceType.C2C_ITEM)
@@ -77,11 +80,10 @@ public class OrderService {
     private Order buildProductOrder(Long buyerId, Long productId) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + productId));
-        if (product.getTotalStock() <= 0) {
+        // Conditional decrement in this transaction (no read-modify-write race; rolled back on failure).
+        if (productRepository.decrementStock(productId) == 0) {
             throw new BusinessException("Product is out of stock.");
         }
-        product.setTotalStock(product.getTotalStock() - 1);
-        productRepository.save(product);
         return Order.builder()
                 .buyerId(buyerId)
                 .sourceType(Order.SourceType.B2C_PRODUCT)

@@ -1,6 +1,6 @@
 // Contention scenario: BUYERS distinct synthetic users (VUS concurrent) race for STOCK units.
 // Exactly STOCK must be ACCEPTED and BUYERS - STOCK SOLD_OUT; nobody may be ALREADY_BOUGHT.
-// Env: BASE_URL, EVENT_ID, JWT_SECRET, STOCK, BUYERS, VUS, USER_BASE, REJECT_STATUS,
+// Env: BASE_URL, EVENT_ID, JWT_SECRET, STOCK, BUYERS, VUS, USER_BASE, REJECT_STATUS (default 409 from P2; pass 200 for A/P0/P1),
 //      SUMMARY_PATH, RUN_ID, K6_VERSION.
 import http from 'k6/http';
 import exec from 'k6/execution';

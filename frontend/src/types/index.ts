@@ -51,7 +51,7 @@ export interface SeckillEvent {
 }
 
 export interface SeckillBuyResponse {
-  result: 'ACCEPTED' | 'SOLD_OUT' | 'ALREADY_BOUGHT' | 'NOT_ACTIVE';
+  result: 'ACCEPTED' | 'SOLD_OUT' | 'ALREADY_BOUGHT' | 'NOT_ACTIVE' | 'UNAVAILABLE';
   trackingToken?: string;
   message: string;
 }

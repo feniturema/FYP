@@ -60,12 +60,43 @@ redis_cli() {
 }
 
 # Target-addressed access used by loadtest/run.sh and drain.sh.
-# P0 implements only `temp:<db>` (MySQL) and `temp` (Redis); P2 adds compose:, P6b adds k8s:.
-# Unknown targets return 2.
+#   temp:<db> / temp                         P0 temporary instances (above)
+#   compose:<project>:<env-file>[:<db>]      a service of the repo's docker-compose.yml under an isolated
+#                                            project (P2); the env-file path must not contain ':'.
+#                                            MySQL authenticates as root with DB_PASSWORD from that env-file.
+# P6b adds k8s:. Unknown or malformed targets return 2.
+P0_COMPOSE_FILE="$P0_LIB_DIR/../../docker-compose.yml"
+
+# compose_target_exec <compose-target> <service> <cmd> [args...]: `docker compose exec -T` in that project.
+compose_target_exec() {
+  local target=$1 service=$2; shift 2
+  local project envfile db
+  IFS=: read -r project envfile db <<< "${target#compose:}"
+  if [[ $target != compose:* || -z $project || ! -f $envfile ]]; then
+    echo "lib.sh: bad compose target '$target' (want compose:<project>:<env-file>[:<db>])" >&2
+    return 2
+  fi
+  docker compose -f "$P0_COMPOSE_FILE" -p "$project" --env-file "$envfile" exec -T "$service" "$@"
+}
+
+_compose_target_db_password() {
+  local envfile
+  IFS=: read -r _ envfile _ <<< "${1#compose:}"
+  [[ -f $envfile ]] || return 2
+  sed -n 's/^DB_PASSWORD=//p' "$envfile" | tail -n 1
+}
+
 mysql_target_cli() {
   local target=$1; shift
   case $target in
     temp:?*) mysql_cli "${target#temp:}" "$@" ;;
+    compose:?*:?*)
+      local pw db
+      pw=$(_compose_target_db_password "$target") || { echo "lib.sh: bad compose target '$target'" >&2; return 2; }
+      IFS=: read -r _ _ db <<< "${target#compose:}"
+      local -a args=(env "MYSQL_PWD=$pw" mysql -uroot)
+      [[ -z $db ]] || args+=("$db")
+      compose_target_exec "$target" mysql "${args[@]}" "$@" ;;
     *) echo "lib.sh: unsupported mysql target '$target'" >&2; return 2 ;;
   esac
 }
@@ -74,6 +105,7 @@ redis_target_cli() {
   local target=$1; shift
   case $target in
     temp) redis_cli "$@" ;;
+    compose:?*:?*) compose_target_exec "$target" redis redis-cli "$@" ;;
     *) echo "lib.sh: unsupported redis target '$target'" >&2; return 2 ;;
   esac
 }

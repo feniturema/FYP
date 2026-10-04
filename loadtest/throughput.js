@@ -1,6 +1,6 @@
 // Throughput scenario: ramp to RATE req/s over RAMP s, then hold RATE for STEADY s.
 // Every iteration is a distinct synthetic buyer, so with enough stock each buy is ACCEPTED.
-// Env: BASE_URL, EVENT_ID, JWT_SECRET, RATE, RAMP, STEADY, USER_BASE, REJECT_STATUS,
+// Env: BASE_URL, EVENT_ID, JWT_SECRET, RATE, RAMP, STEADY, USER_BASE, REJECT_STATUS (default 409 from P2; pass 200 for A/P0/P1),
 //      SUMMARY_PATH, RUN_ID, K6_VERSION.
 import http from 'k6/http';
 import exec from 'k6/execution';

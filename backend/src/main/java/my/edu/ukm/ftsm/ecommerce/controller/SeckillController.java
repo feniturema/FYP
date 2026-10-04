@@ -31,15 +31,24 @@ public class SeckillController {
     }
 
     /**
-     * Hot path. Returns 202 Accepted on success with a tracking token; the order
-     * is persisted asynchronously by the stream consumer.
+     * Hot path. 202 + tracking token once the purchase intent is durable in the outbox (the order is
+     * persisted asynchronously via Kafka); 409 for SOLD_OUT / ALREADY_BOUGHT / NOT_ACTIVE; 503 when the
+     * intent could not be confirmed (UNAVAILABLE). The body is a SeckillBuyResponse in every case.
      */
     @PostMapping("/{eventId}/buy")
     public ResponseEntity<SeckillBuyResponse> buy(@AuthenticationPrincipal AuthPrincipal principal,
                                                   @PathVariable Long eventId) {
         SeckillBuyResponse resp = seckillService.buy(principal.userId(), eventId);
-        HttpStatus status = "ACCEPTED".equals(resp.result()) ? HttpStatus.ACCEPTED : HttpStatus.OK;
-        return ResponseEntity.status(status).body(resp);
+        return ResponseEntity.status(statusFor(resp.result())).body(resp);
+    }
+
+    static HttpStatus statusFor(String result) {
+        return switch (result) {
+            case "ACCEPTED" -> HttpStatus.ACCEPTED;
+            case "UNAVAILABLE" -> HttpStatus.SERVICE_UNAVAILABLE;
+            case "SOLD_OUT", "ALREADY_BOUGHT", "NOT_ACTIVE" -> HttpStatus.CONFLICT;
+            default -> throw new IllegalStateException("unknown SecKill result " + result);
+        };
     }
 
     @GetMapping("/result")

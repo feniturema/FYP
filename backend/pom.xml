@@ -88,11 +88,16 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
-        <!-- H2 for quick local dev / tests (dev profile fallback) -->
+        <!-- Kafka: SecKill order pipeline (outbox relay -> seckill.orders -> listener) -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.springframework.kafka</groupId>
+            <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- Caffeine: short-TTL SecKill event window cache on the buy hot path -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
         </dependency>
 
         <!-- JWT -->
@@ -129,6 +134,12 @@
         </dependency>
 
         <!-- Test -->
+        <!-- H2: in-memory database for @DataJpaTest only (the h2 runtime profile was removed in P2) -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
