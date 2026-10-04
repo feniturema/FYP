@@ -1,0 +1,9 @@
+backend image: ftsm-p1-acc-backend sha256:9f1cace3a0773b8d88184a72ca44d193229991071ea5e32f5833cc6d63dc76f7
+base image:    eclipse-temurin:21.0.12.1_1-jre-noble sha256:22138efd69393501fccd8176ae16b01791ed71ff801b28f0359415389b17c766 ['eclipse-temurin@sha256:22138efd69393501fccd8176ae16b01791ed71ff801b28f0359415389b17c766']
+base layers are a prefix of the backend image layers: True
+Entrypoint: ['sh', '-c', 'exec java $JAVA_OPTS -jar app.jar']
+Env JAVA_OPTS: ['JAVA_OPTS=-XX:MaxRAMPercentage=75']
+# note: image name taken from A9-build.log ("naming to docker.io/library/ftsm-p1-acc-backend:latest").
+# The procedure resolved it with `docker compose config --images backend | head -1`, but Compose v5.5.1
+# also lists the service dependencies (mysql:8.0.46, redis:7.4.6-alpine) in no fixed order, so head -1
+# returned mysql:8.0.46 on the first attempt. The assertion itself is unchanged.

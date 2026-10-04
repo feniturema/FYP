@@ -1,0 +1,3 @@
+backend-1  | 2026-10-04T08:54:50.330Z  INFO 1 --- [ftsm-ecommerce] [           main] o.f.core.internal.command.DbMigrate      : Migrating schema `ftsm_ecommerce` to version "1 - baseline"
+backend-1  | 2026-10-04T08:54:50.396Z  INFO 1 --- [ftsm-ecommerce] [           main] o.f.core.internal.command.DbMigrate      : Successfully applied 1 migration to schema `ftsm_ecommerce`, now at version v1 (execution time 00:00.052s)
+backend-1  | 2026-10-04T08:54:52.580Z  INFO 1 --- [ftsm-ecommerce] [           main] m.e.u.f.e.FtsmEcommerceApplication       : Started FtsmEcommerceApplication in 4.737 seconds (process running for 5.2)
