@@ -49,7 +49,7 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0) — smoke runs only; formal baseline measured by a person before P3 |
 | Java 21 + Boot 3.5.16 (Hibernate 6.6.53, Flyway 11.7.2, Lombok 1.18.46, Connector/J 9.7.0, springdoc 2.8.17) | ✅ P1 (v0.6.0) — D1=boot-3.5.16; no V1_1 migration was needed (fresh and upgraded schemas identical) |
 | Virtual threads (`VIRTUAL_THREADS`, default on) + `DB_POOL_SIZE` (default 20) | ✅ P1 (v0.6.0) — e2e and contention smoke pass with both settings; no pinned stacks observed (`scripts/db/evidence/p1/pinning.txt`) |
-| Container image on Java 21 (`eclipse-temurin:21.0.12.1_1-jre-noble`, `JAVA_OPTS`) | ⚠️ P1 (v0.6.0) — Dockerfile/compose updated, but the container build/run acceptance (P1 A9–A11) has not run yet (no Docker daemon in the P1 environment) |
+| Container image on Java 21 (`eclipse-temurin:21.0.12.1_1-jre-noble`, `JAVA_OPTS`) | ✅ P1 (v0.6.0) — container acceptance passed on local Docker Desktop: A9 image build on the pinned base, A10 health/API/Swagger, A11 in-container e2e 8/8; A12 cleanup complete. Evidence: `scripts/db/evidence/p1/container/` (commit `96a7d36`; `A11-backend.log` redactions in `redactions.txt`) |
 
 ### Verified by `scripts/e2e_test.py` (8/8 passing)
 Admin login · non-UKM rejected (403) · 60 OTP registrations · product+event creation ·

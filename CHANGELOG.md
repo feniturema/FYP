@@ -35,8 +35,11 @@ migration was needed.
   A1–A8 ran on, why its runs record `gitDirty=true`, and blob ids proving no test-relevant file
   changed afterwards).
 - Smoke results: `loadtest/results/_smoke/P1-vt-on/`, `P1-vt-off/`, `P1-vt-on-pinning/`.
+- `scripts/db/evidence/p1/container/` (commit `96a7d36`): container acceptance evidence for
+  A9–A12, run on `a588a8b` with a clean tree (`commit.txt`, `environment.txt`, `A9-*`, `A10-*`,
+  `A11-*`, `A12-*`, `redactions.txt`).
 
-### Verified (`docs/phases/P1.md` §9; local MySQL mode, no Docker daemon)
+### Verified (`docs/phases/P1.md` §9; A1–A8 in local MySQL mode without a Docker daemon; A9–A12 on local Docker Desktop: Engine 29.8.1 linux/arm64, Compose v5.5.1)
 | ID | Result | Key output |
 | --- | --- | --- |
 | A1 | pass | `./mvnw -B clean verify`: 60 sources compiled with `release 21`; `Tests run: 5, Failures: 0, Errors: 0, Skipped: 0`; BUILD SUCCESS |
@@ -47,16 +50,29 @@ migration was needed.
 | A6 | pass | `VIRTUAL_THREADS=true`: e2e 8/8 (20/40/0); contention run rc 0 (5/15/0, orders 5, Redis 0); request threads `tomcat-handler-N` |
 | A7 | pass | `VIRTUAL_THREADS=false`: same results; request threads `http-nio-8080-exec-N` |
 | A8 | produced | 0 pinned stacks; a control program proves the flag and parser detect pinning |
-| A9–A11 | **not executed** | no Docker daemon in the P1 environment; no container was built or started |
-| A12 | not executed | nothing to clean: the `ftsm-p1-acc` compose project was never created |
+| A9 | pass | `compose build backend` rc 0; the `eclipse-temurin:21.0.12.1_1-jre-noble` layers are a prefix of the backend image layers; entrypoint and `JAVA_OPTS=-XX:MaxRAMPercentage=75` as specified |
+| A10 | pass | `up -d --build mysql redis backend` rc 0; `wait_http` rc 0; `/api/products` rc 0; `/v3/api-docs` rc 0; `/swagger-ui.html` 200; Flyway applied V1 on the empty volume |
+| A11 | pass | in-container e2e 8/8 (`ACCEPTED=10 SOLD_OUT=20 others=0`), rc 0 |
+| A12 | cleanup complete | `down -v` rc 0; 0 containers, volumes and networks left for `ftsm-p1-acc` |
 
-### Not executed / follow-ups
-- A9–A11 (image build, container start/API/Swagger, in-container e2e) need a machine with
-  Docker ≥ 24; the P1 PR stays draft until they pass. The step-by-step procedure (env file, build,
-  base-image check, health wait, API/Swagger, e2e log capture, `down -v`) is in the P1 PR
-  description; its evidence goes to `scripts/db/evidence/p1/container/`.
+### Notes and follow-ups
+- A9–A12 evidence is in `scripts/db/evidence/p1/container/` (commit `96a7d36`). Deviations:
+  - A9: `docker compose config --images backend | head -1` is not reliable with Compose v5.5.1,
+    which also lists the service's dependencies (`mysql:8.0.46`, `redis:7.4.6-alpine`) in no fixed
+    order. The base-image check was re-run against `ftsm-p1-acc-backend`, the name in the build
+    log; the assertion is unchanged.
+  - `.gitignore` ignores `*.log`, so the raw logs were committed with
+    `git add -f scripts/db/evidence/p1/container/`.
+  - `A11-backend.log` is the full backend log with two kinds of value redacted: Spring Boot's
+    per-JVM default "generated security password" and the 30 OTP codes of the synthetic e2e users.
+    Both were already invalid, since A12 removed the containers and volumes. Details are in
+    `redactions.txt`.
+  - `A11-thread-names.txt` is informational only: request threads are `tomcat-handler-N` (virtual
+    threads, compose default `VIRTUAL_THREADS=true`).
 - `git diff --check origin/main...HEAD` is not clean: trailing tabs in the two P1 fingerprint TSVs
-  (empty `create_options` field). No other findings.
+  (empty `create_options` field), plus trailing spaces and one blank line at EOF in the raw
+  container logs under `scripts/db/evidence/p1/container/`. Both are captured output and were not
+  rewritten.
 
 ---
 
