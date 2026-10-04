@@ -79,6 +79,16 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Flyway schema migrations (versions managed by Spring Boot) -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
         <!-- H2 for quick local dev / tests (dev profile fallback) -->
         <dependency>
             <groupId>com.h2database</groupId>
