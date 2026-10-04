@@ -1,0 +1,71 @@
+T	items	InnoDB	utf8mb4_0900_ai_ci	
+T	orders	InnoDB	utf8mb4_0900_ai_ci	
+T	products	InnoDB	utf8mb4_0900_ai_ci	
+T	reviews	InnoDB	utf8mb4_0900_ai_ci	
+T	seckill_events	InnoDB	utf8mb4_0900_ai_ci	
+T	users	InnoDB	utf8mb4_0900_ai_ci	
+C	items	1	id	bigint	NO	<NULL>	auto_increment	-	-
+C	items	2	category	varchar(255)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	items	3	item_condition	varchar(255)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	items	4	created_at	datetime(6)	NO	<NULL>		-	-
+C	items	5	description	varchar(2000)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	items	6	image_url	varchar(255)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	items	7	price	decimal(10,2)	NO	<NULL>		-	-
+C	items	8	seller_id	bigint	NO	<NULL>		-	-
+C	items	9	status	enum('ACTIVE','REMOVED','SOLD')	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	items	10	title	varchar(255)	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	orders	1	id	bigint	NO	<NULL>	auto_increment	-	-
+C	orders	2	amount	decimal(10,2)	NO	<NULL>		-	-
+C	orders	3	buyer_id	bigint	NO	<NULL>		-	-
+C	orders	4	created_at	datetime(6)	NO	<NULL>		-	-
+C	orders	5	payment_method	varchar(255)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	orders	6	ref_id	bigint	NO	<NULL>		-	-
+C	orders	7	source_type	enum('B2C_PRODUCT','C2C_ITEM','SECKILL')	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	orders	8	status	enum('CANCELLED','FAILED','PAID','PENDING')	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	orders	9	tracking_token	varchar(255)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	products	1	id	bigint	NO	<NULL>	auto_increment	-	-
+C	products	2	category	varchar(255)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	products	3	created_at	datetime(6)	NO	<NULL>		-	-
+C	products	4	description	varchar(2000)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	products	5	image_url	varchar(255)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	products	6	name	varchar(255)	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	products	7	price	decimal(10,2)	NO	<NULL>		-	-
+C	products	8	total_stock	int	NO	<NULL>		-	-
+C	reviews	1	id	bigint	NO	<NULL>	auto_increment	-	-
+C	reviews	2	author_id	bigint	NO	<NULL>		-	-
+C	reviews	3	comment	varchar(1000)	YES	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	reviews	4	created_at	datetime(6)	NO	<NULL>		-	-
+C	reviews	5	rating	int	NO	<NULL>		-	-
+C	reviews	6	target_ref_id	bigint	NO	<NULL>		-	-
+C	reviews	7	target_type	enum('ITEM','PRODUCT','SELLER')	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	seckill_events	1	id	bigint	NO	<NULL>	auto_increment	-	-
+C	seckill_events	2	end_time	datetime(6)	NO	<NULL>		-	-
+C	seckill_events	3	product_id	bigint	NO	<NULL>		-	-
+C	seckill_events	4	seckill_price	decimal(10,2)	NO	<NULL>		-	-
+C	seckill_events	5	seckill_stock	int	NO	<NULL>		-	-
+C	seckill_events	6	start_time	datetime(6)	NO	<NULL>		-	-
+C	seckill_events	7	status	enum('ACTIVE','ENDED','PENDING')	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	seckill_events	8	stock_warmed	bit(1)	NO	<NULL>		-	-
+C	users	1	id	bigint	NO	<NULL>	auto_increment	-	-
+C	users	2	created_at	datetime(6)	NO	<NULL>		-	-
+C	users	3	email	varchar(255)	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	users	4	email_verified	bit(1)	NO	<NULL>		-	-
+C	users	5	name	varchar(255)	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	users	6	password_hash	varchar(255)	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+C	users	7	role	enum('ADMIN','STUDENT')	NO	<NULL>		utf8mb4	utf8mb4_0900_ai_ci
+I	items	PRIMARY	0	1	id	-	BTREE
+I	orders	PRIMARY	0	1	id	-	BTREE
+I	orders	UK1tfq70x2qvba2uwt5qgphiy0e	0	1	tracking_token	-	BTREE
+I	products	PRIMARY	0	1	id	-	BTREE
+I	reviews	PRIMARY	0	1	id	-	BTREE
+I	seckill_events	PRIMARY	0	1	id	-	BTREE
+I	users	PRIMARY	0	1	id	-	BTREE
+I	users	UK6dotkott2kjsp8vw4d0m25fb7	0	1	email	-	BTREE
+K	items	PRIMARY	PRIMARY KEY
+K	orders	PRIMARY	PRIMARY KEY
+K	orders	UK1tfq70x2qvba2uwt5qgphiy0e	UNIQUE
+K	products	PRIMARY	PRIMARY KEY
+K	reviews	PRIMARY	PRIMARY KEY
+K	seckill_events	PRIMARY	PRIMARY KEY
+K	users	PRIMARY	PRIMARY KEY
+K	users	UK6dotkott2kjsp8vw4d0m25fb7	UNIQUE

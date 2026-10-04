@@ -17,3 +17,7 @@ frontend/vite.config.d.ts
 
 # uploaded images (local dev)
 uploads/
+
+# load testing: k6 install dir and per-run scratch files
+.tools/
+loadtest/results/**/tmp/

@@ -1,0 +1,50 @@
+section
+== tables
+TABLE_NAME	ENGINE	TABLE_COLLATION
+flyway_schema_history	InnoDB	utf8mb4_0900_ai_ci
+items	InnoDB	utf8mb4_0900_ai_ci
+orders	InnoDB	utf8mb4_0900_ai_ci
+products	InnoDB	utf8mb4_0900_ai_ci
+reviews	InnoDB	utf8mb4_0900_ai_ci
+seckill_events	InnoDB	utf8mb4_0900_ai_ci
+users	InnoDB	utf8mb4_0900_ai_ci
+section
+== enum columns
+TABLE_NAME	COLUMN_NAME	COLUMN_TYPE
+items	status	enum('ACTIVE','REMOVED','SOLD')
+orders	source_type	enum('B2C_PRODUCT','C2C_ITEM','SECKILL')
+orders	status	enum('CANCELLED','FAILED','PAID','PENDING')
+reviews	target_type	enum('ITEM','PRODUCT','SELLER')
+seckill_events	status	enum('ACTIVE','ENDED','PENDING')
+users	role	enum('ADMIN','STUDENT')
+section
+== indexes
+TABLE_NAME	INDEX_NAME	NON_UNIQUE	columns
+items	PRIMARY	0	id
+orders	PRIMARY	0	id
+orders	UK1tfq70x2qvba2uwt5qgphiy0e	0	tracking_token
+products	PRIMARY	0	id
+reviews	PRIMARY	0	id
+seckill_events	PRIMARY	0	id
+users	PRIMARY	0	id
+users	UK6dotkott2kjsp8vw4d0m25fb7	0	email
+section
+== key columns
+TABLE_NAME	COLUMN_NAME	COLUMN_TYPE	IS_NULLABLE
+items	item_condition	varchar(255)	YES
+orders	ref_id	bigint	NO
+orders	source_type	enum('B2C_PRODUCT','C2C_ITEM','SECKILL')	NO
+orders	tracking_token	varchar(255)	YES
+seckill_events	stock_warmed	bit(1)	NO
+users	email	varchar(255)	NO
+section
+== row counts
+t	n
+users	1
+products	3
+seckill_events	0
+orders	0
+section
+== flyway_schema_history (version|type|script|success)
+history
+1|BASELINE|<< Flyway Baseline >>|1

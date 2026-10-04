@@ -6,13 +6,13 @@
 
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.46
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: ${DB_NAME:-ftsm_ecommerce}
     ports:
-      - "3306:3306"
+      - "${MYSQL_HOST_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -22,10 +22,10 @@ services:
       retries: 10
 
   redis:
-    image: redis:7-alpine
+    image: redis:7.4.6-alpine
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "${REDIS_HOST_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -67,7 +67,7 @@ services:
     volumes:
       - uploads_data:/app/uploads
     ports:
-      - "8080:8080"
+      - "${BACKEND_HOST_PORT:-8080}:8080"
 
   frontend:
     build: ./frontend
@@ -75,7 +75,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
+      - "${FRONTEND_HOST_PORT:-80}:80"
 
 volumes:
   mysql_data:
