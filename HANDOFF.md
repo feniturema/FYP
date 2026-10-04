@@ -1,4 +1,4 @@
-# FTSM E-Commerce — Implementation Handoff (for Codex)
+# FTSM E-Commerce — Implementation Handoff
 
 ## Traceability / authorship
 
@@ -8,11 +8,17 @@
 | P1/P2 handoff completion: admin SecKill list/update/delete, order detail/pay-later, OTP resend, reviews, product/item details, tests/docs/git init | Codex (GPT-5) | 2026-05-31 | `CHANGELOG.md` v0.2.0; git commit `29e0506` |
 | v0.2.0 independent re-verification by Claude Code | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.2.0 "Verified by Claude Code" section |
 | P3: cart checkout + image upload | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.3.0 |
-| AI chatbot activated (DeepSeek OpenAI-compatible) | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.4.0 |
+| AI chatbot activated (DeepSeek OpenAI-compatible) | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.4.0–v0.4.2 |
+| Docs aligned with code; compose `LLM_*` fix; upgrade plan | Claude Code | 2026-10-03 | `CHANGELOG.md` v0.4.3; `docs/UPGRADE_PLAN.md` |
+| Upgrade implementation spec (v0.4.4), agent-executable revision (v0.4.5), per-phase execution packages (v0.4.6) | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md`, `docs/phases/`, `docs/agent-prompts/` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
 has completed the P1/P2 handoff scope listed in §6. P3 and AI chatbot are also complete.
+The next phase (v0.5+: Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, CI/K8s)
+is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (master spec) and
+`docs/phases/` + `docs/agent-prompts/` (one execution package and prompt per phase). Start P0 with
+`docs/agent-prompts/START-P0.md`; known gaps in the current code are in §8 below.
 
 ---
 
@@ -33,7 +39,8 @@ has completed the P1/P2 handoff scope listed in §6. P3 and AI chatbot are also 
 | Cart checkout (`/cart`, Zustand `useCartStore`, payment selector) | ✅ Done by Claude Code (v0.3.0) |
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
-| AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0) |
+| AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
+| Automated tests | ⚠️ 5 JUnit tests (3 classes) + `scripts/e2e_test.py` (8 checks); no SecKill service/integration test yet |
 
 ### Verified by `scripts/e2e_test.py` (8/8 passing)
 Admin login · non-UKM rejected (403) · 60 OTP registrations · product+event creation ·
@@ -48,7 +55,7 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consu
   ```bash
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
   ```
-- **External services (already installed & running via Homebrew on this machine):**
+- **External services (the original author's macOS dev machine used Homebrew):**
   - Redis 7 — `redis-cli ping` → `PONG`  (start: `brew services start redis`)
   - MySQL 9 — `mysqladmin ping`  (start: `brew services start mysql`); **root has no local password**
 - **Backend (dev):**
@@ -84,8 +91,12 @@ SecKill buy ─► Lua (atomic deduct in Redis) ─► XADD seckill:orders (Redi
                                    │                                  │
                     client polls /seckill/result         persists Order + mock payment
 ```
-- **Hot path never touches MySQL.** Redis holds `seckill:stock:{eventId}` and
-  `seckill:bought:{eventId}`. Orders are written asynchronously by the consumer.
+- **Hot path never writes to MySQL.** It does one `findById` on `seckill_events` to check the
+  time window, then everything else is Redis: `seckill:stock:<eventId>` and
+  `seckill:bought:<eventId>` (plain ids, no `{}` hash tag). Orders are written
+  asynchronously by the consumer, which also settles payment with `FAKE_WALLET`.
+- Sold out / already bought / not active return **HTTP 200** with a `result` code; only
+  `ACCEPTED` returns 202.
 - OTP codes live in Redis (`otp:{email}`, 5-min TTL).
 
 ---
@@ -132,7 +143,8 @@ GET  /api/seckill/events · /api/seckill/events/{id}
 POST /api/seckill/{eventId}/buy  (202 + token)    GET /api/seckill/result?token=
 GET  /api/orders · /api/orders/{id}   POST /api/orders   POST /api/orders/{id}/pay
 GET/POST /api/reviews
-POST /api/chat   (ON HOLD)
+POST /api/chat   (auth; DeepSeek assistant, live)
+POST /api/upload (auth; multipart image)   GET /uploads/** (public)
 POST /api/admin/products   PUT/DELETE /api/admin/products/{id}
 GET/POST /api/admin/seckill-events   PUT/DELETE /api/admin/seckill-events/{id}
 ```
@@ -201,13 +213,16 @@ Write at least a happy-path test where noted.
 
 ---
 
-## 7. AI chatbot — ON HOLD (context only, do not implement)
+## 7. AI chatbot — ACTIVE
 
 **AI chatbot is now ACTIVE** (v0.4.0). It uses the **DeepSeek** OpenAI-compatible API.
 
-- Provider: DeepSeek (`https://api.deepseek.com/v1`), model `deepseek-chat`.
+- Provider: DeepSeek (`https://api.deepseek.com/v1`), default model `deepseek-v4-flash`
+  (`deepseek-v4-pro` also works; it is a reasoning model, hence `max_tokens: 2048`).
 - API key stored in `.env` as `LLM_API_KEY` (gitignored — never commit it).
-- `ChatService` builds a product-context prompt (keyword retrieval against active products)
+- `ChatService` builds a product-context prompt (products whose name/category appears in the
+  message, max 10; the whole catalogue when it has ≤ 10 products — there is no
+  tool/function calling and no product `active` flag)
   and calls `POST /chat/completions` via WebClient. Falls back to a friendly placeholder if
   `LLM_API_KEY` is blank.
 - `ChatbotController` returns `ChatResponse` (blocks on the Mono) — required to make Spring
@@ -230,6 +245,20 @@ Write at least a happy-path test where noted.
    status. After creating an event, allow up to ~10s before it's buyable.
 5. **Local MySQL root has no password** — run backend with `DB_PASSWORD=""` in dev.
 
+### Known gaps (NOT handled yet — see `docs/UPGRADE_PLAN.md` §1 for the fix plan)
+
+6. **Single replica only.** `SeckillService.reconcileEvents()` runs on every instance; two
+   replicas could both see `stockWarmed=false` and re-`SET` Redis stock after sales began.
+7. **Normal checkout race.** `OrderService.buildProductOrder` / `buildItemOrder` do
+   read-modify-write without a row lock or conditional `UPDATE`, so concurrent buyers can
+   oversell a B2C product or double-sell a C2C item. (SecKill is not affected.)
+8. **Redis Stream durability.** Lua deduction and `XADD` are separate calls; Redis runs with
+   default RDB snapshots only. A crash between them, or a Redis restart, can lose accepted
+   orders (results in under-selling, never oversell).
+9. **No schema migrations.** Hibernate `ddl-auto: update`; no Flyway/Liquibase.
+10. **Uploads on local disk** (`UPLOAD_DIR` / `uploads_data` volume) — not shared across replicas.
+11. **`prod` profile** is set by Docker Compose but has no overrides in `application.yml`.
+
 ---
 
 ## 9. Definition of done — cumulative (P1–P4 / v0.4.0)
@@ -240,6 +269,11 @@ Write at least a happy-path test where noted.
 - ✅ AI chatbot ACTIVE: DeepSeek OpenAI-compatible integration; `ChatService` product-context aware; `ChatWidget` live. (Claude Code v0.4.0)
 - ✅ All builds green (backend + frontend) and `scripts/e2e_test.py` 8/8 after v0.4.0.
 - ⬜ Remaining: real server deployment, HTTPS, real SMTP verification end-to-end.
+- ⬜ Next: v0.5+ upgrade. Master spec: `docs/CHANGE_SPEC.md` (dependencies, registries, coverage matrix).
+  Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
+  Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
+  Prerequisite for P0: the docs branch (v0.4.3–v0.4.6) is merged into `main`. Human decisions pending:
+  D1 (stay on Boot 3.5.16, gates P1), D2 (embedding provider, gates P5b), D3 (implement P7).
 
 ---
 

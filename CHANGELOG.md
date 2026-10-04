@@ -5,6 +5,158 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [Unreleased] — 2026-10-04 — Specification quality corrections
+
+### Fixed
+- P0 `wait_cmd` now validates its invocation and bounds each retry with coreutils `timeout`, so a blocked readiness command cannot exceed the declared deadline.
+- P4b now defines a deterministic seeded test administrator and `get_test_token.py` flow for all authenticated acceptance requests.
+- P4b `McpServerIT` now has an explicit test-only Flyway migration sequence and container property wiring while production mcp-server keeps Flyway disabled.
+- The master spec and agent prompts now make the document-branch merge a hard P0 gate.
+- Added `docs/agent-prompts/START-P0.md`, a final kickoff prompt that delegates only P0 and requires evidence-based draft PR completion.
+- P1 and P6b now require fixed tool/image/schema versions; unavailable pinned artifacts stop the phase instead of silently falling back to newer versions.
+
+### Not executed
+- These are documentation-only corrections. No application build or integration acceptance was run.
+
+---
+
+## [v0.4.6] — 2026-10-03 — Per-phase execution packages
+
+Authored by Claude Code. Docs only (`docs/`, `README.md`, `HANDOFF.md`, `CHANGELOG.md`); no
+application code, configuration or Compose changes.
+
+### Added
+- `docs/phases/{P0,P1,P2,P3,P4a,P6a,P4b,P5a,P5b,P6b,P7}.md`: one complete execution package per phase.
+  Each has the same 12 sections: goals and non-goals, preconditions, inputs and outputs, file list,
+  ordered tasks, contracts, configuration and run commands, tests, acceptance matrix, upgrade and
+  recovery, PR gate, and prompt.
+- `docs/agent-prompts/*.md`: a standalone prompt for every phase.
+
+### Changed
+- `docs/CHANGE_SPEC.md` rewritten as the master spec:
+  - verified repo facts and evidence markers;
+  - phase order — P6a moves before P4b so that later phases can add integration tests;
+  - version baseline with evidence;
+  - migration, environment variable, port and cross-phase symbol registries;
+  - stop rules, human decisions (D1/D2/D3/L1/B1) and known risks;
+  - coverage matrix, issues fixed, unverified checklist, and readiness per phase.
+- `docs/UPGRADE_PLAN.md`: aligned with this round's experiment results — MCP client starter,
+  no-key startup, async security, vector store module, uploads, Boot 3.5 support status (D1) and
+  the new phase order.
+
+### Verified — 2026-10-03, in scratch projects outside the repo
+- Boot 3.5.16 + Spring AI 1.1.8:
+  - with `spring.ai.model.chat=none` alone, startup still fails (ChatClient auto-configuration);
+  - a deepseek provider with an empty key fails startup;
+  - an EnvironmentPostProcessor guard works;
+  - the MCP client starter fails startup when the server is unreachable;
+  - the MCP streamable server endpoint is `/mcp`, and the Java client can list and call tools;
+  - `prompt().system()` replaces `defaultSystem`;
+  - a `Flux`/`Mono` endpoint passes authentication on real Tomcat without saving the
+    SecurityContext, and MockMvc `asyncDispatch` is not a faithful test of this.
+- Compiled against the APIs the spec relies on, including `SyncMcpToolCallbackProvider`,
+  `ToolCallbacks`, `RedisVectorStore.builder`, `FilterExpressionBuilder`,
+  `W3CTraceContextPropagator`, and the MCP transport `connectTimeout`.
+- k6 2.3.0: `dropped_iterations` thresholds, result-tagged counters, checksum values.
+- Version, tag, checksum and digest values are listed in `docs/CHANGE_SPEC.md` §0.5.
+
+### Not executed
+- No phase was implemented. All integration acceptance listed in `docs/CHANGE_SPEC.md` §3 is pending.
+
+---
+
+## [v0.4.5] — 2026-10-03 — Upgrade spec made agent-executable
+
+Authored by Claude Code. Docs only (`docs/`, `README.md`, `HANDOFF.md`, `CHANGELOG.md`).
+
+### Changed
+- `docs/CHANGE_SPEC.md`:
+  - §0 now records the verified repo facts: `main` = `5f5fae4` = v0.4.2; v0.4.3–v0.4.5 live only
+    on the docs branch; no tags; no Maven Wrapper.
+  - Fixed the baseline naming: tag `v0.4.2-baseline` → `5f5fae4`. Earlier docs wrongly called it
+    v0.4.0.
+  - P0 rewritten as a self-contained execution package: preconditions, Docker-less fallback,
+    Wrapper with sha256, reproducible schema export, fresh/legacy schema-equivalence check,
+    k6 scripts, smoke vs formal runs, file list, a 17-item acceptance matrix, stop rules, and a
+    ready-to-use prompt.
+  - Phase dependencies fixed: P6a now depends on P2 and P4a; P5b is gated on human labelling and
+    the embedding decision; P7 is optional.
+  - Maven working directory defined per phase (`cd backend && ./mvnw` until P4a).
+  - All versions pinned or attributed to a BOM, including Boot 3.5.16, Spring AI 1.1.8,
+    ShedLock 6.10.0, OTel agent 2.32.0 (sha256), otel-lgtm 0.35.0, k6 2.3.0 and Testcontainers
+    1.21.4.
+  - Later phases clarified:
+    - P2: `SECKILL_PAYMENT=FAKE_WALLET`; when the reconciler sets `reconciled`.
+    - P4b: no-key startup, MCP-down startup, SecurityContext saved for ASYNC dispatch (no broad
+      `permitAll`) with tests, read-only DB user script without SQL injection, tool recorder
+      covers local tools.
+    - P5a: seller mapping and idempotent import.
+    - P5b: no-embedding startup test.
+    - P6a: correct Redis/Kafka Testcontainers classes.
+  - k6 steady-state QPS is now computed as `count / steady seconds` (k6's exported sub-metric
+    rate is averaged over the whole test, verified on k6 2.3.0).
+- `docs/UPGRADE_PLAN.md`: same version and baseline fixes; phase table and §12 now defer to
+  `CHANGE_SPEC.md` §0.
+- `README.md`, `HANDOFF.md`: traceability rows for v0.4.3–v0.4.5; baseline commit/tag; next step.
+- `CHANGELOG.md`: the v0.4.3 entry now states that it included a compose change.
+
+### Verified — 2026-10-03
+- `mvn -B verify` on `5f5fae4` with JDK 21.0.11 / Maven 3.9.11: 5 tests, 0 failures.
+- Maven Wrapper generation command (plugin 3.3.4, Maven 3.9.11 + sha256) works (tried in a
+  scratch directory, not committed).
+- k6 2.3.0: `k6/crypto` HS256 signing matches Python; `count==N` thresholds exit 99 on
+  mismatch; `handleSummary` output format.
+
+### Not executed
+- No P0 step was run against MySQL (no Docker daemon in the authoring environment). Schema export,
+  Flyway, e2e and k6 runs against the backend are all left to P0.
+
+---
+
+## [v0.4.4] — 2026-10-03 — Implementation spec for the upgrade
+
+Authored by Claude Code. Docs only.
+
+### Added
+- `docs/CHANGE_SPEC.md`: file-by-file implementation spec for the v0.5+ upgrade, split into
+  agent-sized phases (P0–P7, one PR each) with migrations, code skeletons, config, tests,
+  acceptance commands and out-of-scope lists.
+
+### Changed
+- `docs/UPGRADE_PLAN.md`: time estimates replaced by phase dependencies and an agent
+  execution guide; links to the spec; Flyway dependency note corrected for Boot 3.x.
+- `README.md`, `HANDOFF.md`: point to the spec.
+
+---
+
+## [v0.4.3] — 2026-10-03 — Docs aligned with code + upgrade plan
+
+Authored by Claude Code. No application (Java/TypeScript) logic changed, but this is **not
+docs-only**: it includes a deployment-config fix in `docker-compose.yml`.
+
+### Fixed
+- `docker-compose.yml`: backend now receives `LLM_API_KEY` / `LLM_BASE_URL` / `LLM_MODEL`
+  (it was still passing the obsolete `GEMINI_API_KEY` / `GEMINI_MODEL`, so the assistant
+  always answered "not configured" under Docker).
+
+### Changed — Docs
+- `README.md`: DeepSeek instead of Gemini; traceability rows for v0.3.0–v0.4.3; SecKill
+  description corrected (hot path reads the event row once and never *writes* MySQL;
+  non-accepted results return 200); added cart, upload and assistant flows; accurate test
+  inventory (5 JUnit tests + e2e script); new "Known limitations" section; full env-var list.
+- `HANDOFF.md`: chatbot no longer marked ON HOLD; default model `deepseek-v4-flash`;
+  `/api/upload` added to the API surface; architecture note corrected; new
+  "Known gaps" list (single-replica scheduler, normal-checkout race, Stream durability,
+  no migrations, local uploads, empty `prod` profile).
+- `backend/pom.xml`: stale "WebClient for Gemini" comment.
+
+### Added
+- `docs/UPGRADE_PLAN.md`: gap analysis of the FTSM upgrade spec against this codebase and a
+  phased plan (P0–P7) for Java 21, Outbox + Kafka, k6, Spring AI/MCP, hybrid retrieval,
+  Testcontainers/CI/K8s/OpenTelemetry.
+
+---
+
 ## [v0.4.2] — 2026-06-01 — Default model → deepseek-v4-flash (faster)
 
 - Benchmarked both DeepSeek v4 models (3 runs each, same product-context prompt):
