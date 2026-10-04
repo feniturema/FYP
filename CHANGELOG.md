@@ -5,6 +5,85 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.7.0] — 2026-10-04 — P2: transactional outbox + Kafka order pipeline, conditional stock updates
+
+Authored by Claude Code per `docs/phases/P2.md`. Replaces the SecKill Redis Stream with a MySQL
+outbox relayed to Kafka, and makes normal B2C / C2C checkout race-free. One new migration (V2).
+Failure semantics are the table in `docs/phases/P2.md` §6.1.
+
+### Added
+- `V2__seckill_outbox.sql`: `order_outbox`; `orders.seckill_event_id` + unique key
+  `uk_orders_buyer_seckill (buyer_id, seckill_event_id)`; `seckill_events.sold_count` / `reconciled`;
+  backfill of historical orders and events; not-yet-started events re-warm under the new keys.
+- `OutboxDao` (JdbcTemplate; autocommit insert, `FOR UPDATE SKIP LOCKED` batches), `OutboxPublisher`
+  (one transaction per batch, all-or-nothing on Kafka acks, READ COMMITTED), `OutboxRelay` (100 ms),
+  `SeckillOrderListener` + `SeckillOrderWriter` (order + `sold_count < seckill_stock` + `FAKE_WALLET`
+  in one transaction; duplicates recognised by tracking token), `KafkaConfig` (topics
+  `seckill.orders` ×6 and `seckill.orders.DLT`; 3 retries 1 s apart, then DLT; JSON errors not retried),
+  `SeckillEventCache` (Caffeine, 5 s), `SeckillReconciler` (60 s, final verdict per ended event),
+  `OutboxJanitor` (hourly, SENT rows of reconciled events older than 3 days), `seckill_rollback.lua`.
+- Counters `seckill.outbox.uncertain`, `seckill.compensation.failed`, `seckill.dlt.publish.failed`,
+  `seckill.reconcile.mismatch`, `seckill.reconcile.incomplete`.
+- 50 new tests (55 total, 13 classes), no broker needed: `SeckillServiceBuyTest`, `OutboxPublisherTest`,
+  `SeckillOrderListenerTest`, `KafkaConfigTest`, `SeckillReconcilerTest`, `SeckillEventCacheTest`,
+  `SeckillControllerTest`, `RedisKeysTest`, H2 `SeckillOrderWriterH2Test`, `OrderServiceRollbackTest`.
+- `scripts/p2/acceptance.sh` (A2–A12 in compose project `ftsm-p2-acc`, fault injection by compose
+  commands only), `scripts/p2/race_product.py`, `scripts/p2/precheck_cutover.py` (read-only §10.1
+  cutover precheck), evidence in `scripts/p2/evidence/`.
+- `loadtest/verify_outbox.sql`, `drain.sh outbox` mode, `scripts/db/lib.sh` `compose:` targets.
+
+### Changed
+- `POST /api/seckill/{eventId}/buy`: 202 `ACCEPTED` only after the outbox row is written; `SOLD_OUT` /
+  `ALREADY_BOUGHT` / `NOT_ACTIVE` now **409** (was 200; body unchanged); new **503 `UNAVAILABLE`**.
+  An unknown event id answers 409 `NOT_ACTIVE` (was 404). Frontend type gains `'UNAVAILABLE'`.
+- Redis keys `seckill:stock:{<id>}` / `seckill:bought:{<id>}` (hash tag); stock warm-up is `SET NX`;
+  editing a PENDING event drops its keys and cache entry.
+- `OrderService`: conditional `decrementStock` / `markSold` in the `create` transaction (no
+  read-modify-write; rollback restores stock/status).
+- `docker-compose.yml`: `apache/kafka:3.9.2` (KRaft, `KAFKA_HOST_PORT` default 29092), `redis:8.10.2`
+  with AOF, backend gets `KAFKA_BOOTSTRAP=kafka:9092` and waits for a healthy Kafka.
+- `pom.xml`: `spring-kafka` 3.3.16 (kafka-clients 3.9.2), `caffeine` 3.2.4 (Boot BOM); H2 test-only.
+- `application.yml`: `spring.kafka.*` and `app.seckill.*`; the `h2` profile is removed.
+- k6 `REJECT_STATUS` defaults to 409 (pre-P2 configs pass 200); `verify.sql` renamed
+  `verify_legacy.sql`; `run.sh` picks verify file and key names by drain mode.
+- `scripts/e2e_test.py`: step 7 polls up to 30 s; result parsing in `buy_result()`.
+- README (pipeline, status codes, cutover section, local dev with compose Kafka), HANDOFF, loadtest README.
+
+### Removed
+- `SeckillStreamConsumer`, `RedisKeys.seckillOrdersStream/seckillConsumerGroup`, the `h2` runtime profile.
+
+### Verified (`docs/phases/P2.md` §9; macOS arm64, Docker Engine 29.8.1 / Compose v5.5.1; evidence `scripts/p2/evidence/`)
+A1 on `49b1e04`; A2–A12 by `scripts/p2/acceptance.sh` on `6688532` with a clean tree (A12 `run.json`: `gitDirty=false`).
+
+| ID | Result | Key output |
+| --- | --- | --- |
+| A1 | pass | `./mvnw -B clean verify`: 55 tests (5 + 50), 0 failures, BUILD SUCCESS; `npm ci && npm run build` OK (`build.txt`) |
+| A2 | pass | stack up, health `UP`; topics `seckill.orders` (6 partitions), `seckill.orders.DLT` (1) (`topics.txt`) |
+| A3 | pass | `flyway_schema_history`: `1 1`, `2 1` (`flyway.txt`) |
+| A4 | pass | e2e 8/8; 200 users vs 50 units: `ACCEPTED=50 SOLD_OUT=150 others=0` (`e2e.txt`) |
+| A5 | pass | orders = buyers = sold_count = 50, all PAID, outbox NEW 0, Redis remaining 0 (`verify-a5.tsv`) |
+| A6 | **fail — spec conflict, decision pending** | kill landed mid-run (`k6_running_at_kill=yes`); orders 50 = buyers 50 = sold_count 50 ≤ stock, no duplicates, outbox NEW 0; but k6 received 49 × 202. One request had committed its outbox row (T1) when SIGKILL hit, so its client got `EOF` while its order was (correctly) created. The A6 assertion `orders == 202 received` contradicts §6.1, which only guarantees 202 ⇒ order (`crash.tsv`, `crash-analysis.txt`) |
+| A7 | pass | Kafka paused 30 s: 20/20 buys → 202 while paused, outbox NEW peaked at 20, relay rolled back each batch; drained 4 s after unpause; orders = accepted = 20 (`kafka-pause.tsv`) |
+| A8 | pass | offsets reset to earliest: orders unchanged, every replayed message logged `duplicate … skipped` (`replay.txt`) |
+| A9 | pass | MySQL stopped: buy → 503 `UNAVAILABLE` after ~60 s (two Hikari timeouts), user still in the bought set (no compensation), `UNCERTAIN` logged (`uncertain.txt`) |
+| A10 | pass | 20 concurrent buyers of a 1-unit product: one 200, nineteen 400 `Product is out of stock.`, stock 0, one order (`race.txt`) |
+| A11 | pass | 1-minute event, 5 orders: `reconciled=1`, INFO `consistent (pending=0 published=5 orders=5 sold_count=5 redisSold=5)` (`reconcile.txt`) |
+| A12 | pass | `run.sh --config P2 … --reject-status 409 --drain outbox`: rc 0, orders = buyers = accepted = 5, Redis 0 (`loadtest/results/_smoke/P2/`) |
+| A13 | pass | cutover rehearsal on a P1-history copy (`cutover-rehearsal.sh`, commit `6688532`): precheck FAILs while an event is live (control), PASSes after it ends (stream consumed, 10/10 tokens have orders, no duplicates); V2 `success=1`; 10/10 SECKILL orders backfilled; ended event `reconciled=1`, `sold_count=10`; future event re-warmed as `seckill:stock:{2}=7`; legacy stream archived (`cutover.txt`) |
+| A14 | pass | `down -v` of `ftsm-p2-acc` only: 0 containers / volumes / networks left (`cleanup.txt`) |
+
+### Deviations from spec (details in the P2 PR)
+- `SeckillOrderListener` logs `duplicate … skipped` at INFO (§6.7 shows debug): A8 asserts on that log line
+  and the default level is INFO.
+- `OutboxPublisher.publishBatch` runs at READ COMMITTED: under REPEATABLE READ its `SKIP LOCKED` scan
+  gap-locks the hot-path outbox INSERT for as long as Kafka is slow (reproduced: `gaplock-isolation.txt`).
+- `@DynamicUpdate` on `SeckillEvent`, and `SeckillEventRepository.markReconciled` (targeted UPDATE): status
+  and reconcile saves must never write a stale `sold_count` back (found in code review).
+- The `REJECT_STATUS` default lives in `loadtest/lib/result.js`, so it was changed there (the scenarios import it).
+- Janitor test lives in `SeckillReconcilerTest` (no test file outside the §4 list).
+- macOS host: `scripts/tools/install_k6.sh` is Linux-only, so k6 ran as the pinned `grafana/k6:2.3.0` image;
+  a session-only `timeout` shim stood in for coreutils (needed by `wait_cmd`).
+
 ## [v0.6.0] — 2026-10-04 — P1: Java 21, Spring Boot 3.5.16, virtual threads
 
 Authored by Claude Code per `docs/phases/P1.md`. **D1=boot-3.5.16** (maintainer decision,

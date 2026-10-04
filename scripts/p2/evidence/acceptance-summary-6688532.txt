@@ -1,0 +1,14 @@
+# Full A2-A12 run on commit 6688532 (clean tree). A6 here was judged by the OLD A6 assertion; see A6-oldspec-*.txt.
+acceptance: commit 66885321d2f0fa3a08f67f9eb9f3a2a40fd0fd87 dirty=no at 2026-10-04T10:06:02Z
+A2	PASS	rc=0	31s
+A3	PASS	rc=0	1s
+A4	PASS	rc=0	27s
+A5	PASS	rc=0	2s
+A6	FAIL	rc=1	56s
+A7	PASS	rc=0	44s
+A8	PASS	rc=0	19s
+A9	PASS	rc=0	79s
+A10	PASS	rc=0	3s
+A11	PASS	rc=0	231s
+A12	PASS	rc=0	4s
+acceptance: done, first failure rc=1 (logs in /tmp/ftsm-p2.jSmkaA/logs)

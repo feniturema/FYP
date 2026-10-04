@@ -1,0 +1,26 @@
+A1 on commit 49b1e04fa56ef9d00e2c1fe55cbe01aece5abb9f (clean tree: yes) at 2026-10-04T10:05:06Z
+JDK: java version "21.0.1" 2023-10-17 LTS; Maven: Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b); Node v24.12.0, npm 11.6.2
+
+$ cd backend && ./mvnw -B clean verify   -> rc=0
+Compiling 68 source files with javac [debug parameters release 21] to target/classes
+Compiling 13 source files with javac [debug parameters release 21] to target/test-classes
+Tests run: 1, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.repository.ReviewRepositoryTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.config.KafkaConfigTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.security.UkmEmailValidatorTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.utils.RedisKeysTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.controller.SeckillControllerTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.consumer.SeckillOrderListenerTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.service.OutboxPublisherTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.service.SeckillEventCacheTest
+Tests run: 5, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.service.OrderServiceRollbackTest
+Tests run: 10, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.service.SeckillServiceBuyTest
+Tests run: 4, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.service.SeckillOrderWriterH2Test
+Tests run: 9, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.service.SeckillReconcilerTest
+Tests run: 2, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.service.strategy.PaymentStrategyFactoryTest
+Tests run: 55, Failures: 0, Errors: 0, Skipped: 0
+BUILD SUCCESS
+
+$ cd frontend && npm ci && npm run build   -> rc=0
+added 163 packages, and audited 164 packages in 3s
+✓ 120 modules transformed.
+✓ built in 670ms

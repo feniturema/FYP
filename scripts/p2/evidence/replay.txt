@@ -1,0 +1,18 @@
+orders before replay: 120
+$ kafka-consumer-groups.sh --group seckill-order-writer --describe --state
+
+GROUP                     COORDINATOR (ID)          ASSIGNMENT-STRATEGY  STATE           #MEMBERS
+seckill-order-writer      kafka:9092  (1)                                Empty           0
+$ kafka-consumer-groups.sh --group seckill-order-writer --reset-offsets --to-earliest --all-topics --execute
+
+GROUP                          TOPIC                          PARTITION  NEW-OFFSET     seckill-order-writer           seckill.orders                 5          0              seckill-order-writer           seckill.orders                 3          0              seckill-order-writer           seckill.orders                 2          0              orders after replay: 120
+'duplicate .* skipped' log lines: before=20 after=160 (replayed duplicates: 140)
+$ kafka-consumer-groups.sh --group seckill-order-writer --describe
+
+GROUP                TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG             CONSUMER-ID                                                          HOST            CLIENT-ID
+seckill-order-writer seckill.orders  5          40              40              0               <consumer> /<ip>     consumer-seckill-order-writer-3
+seckill-order-writer seckill.orders  4          -               0               -               <consumer> /<ip>     consumer-seckill-order-writer-3
+seckill-order-writer seckill.orders  1          -               0               -               <consumer> /<ip>     consumer-seckill-order-writer-1
+seckill-order-writer seckill.orders  0          -               0               -               <consumer> /<ip>     consumer-seckill-order-writer-1
+seckill-order-writer seckill.orders  3          50              50              0               <consumer> /<ip>     consumer-seckill-order-writer-2
+seckill-order-writer seckill.orders  2          50              50              0               <consumer> /<ip>     consumer-seckill-order-writer-2

@@ -1,0 +1,23 @@
+# OLD SPEC run on commit 6688532 (A6 assertion before the 2026-10-04 revision). Analysis written right after that run.
+A6 analysis (why orders=50 but k6 saw 49 x 202). Event 2, SIGKILL of backend at 2026-10-04T10:07:11Z.
+
+## outbox rows of event 2 by second (T1 commits)
+second	rows_written	first	last
+10:07:10	4	10:07:10.985000	10:07:10.998000
+10:07:11	24	10:07:11.002000	10:07:11.193000
+10:07:48	12	10:07:48.897000	10:07:48.996000
+10:07:49	10	10:07:49.000000	10:07:49.057000
+
+## k6 request failures by time and error (no HTTP response => counted UNPARSEABLE)
+  48 2026-10-04T10:07:11Z EOF
+  51 2026-10-04T10:07:18Z EOF
+   1 2026-10-04T10:07:48Z i/o timeout
+
+## k6 business results: k6 result counts: {'ACCEPTED': 49, 'SOLD_OUT': 51, 'ALREADY_BOUGHT': 0, 'NOT_ACTIVE': 0, 'UNAVAILABLE': 0, 'UNPARSEABLE': 100}
+
+Reading: requests were sequential (1 VU, ~4 ms each). The kill at 10:07:11 hit one request after its
+outbox INSERT (T1) had committed but before the 202 was written: k6 got EOF, yet the order is created
+after restart (P2.md §6.1 guarantee 3 is one-directional: every 202 -> an order). Requests during the
+outage got EOF from the Docker port proxy; after the restart k6 resumed and the rest were answered.
+orders=50 <= stock 50, orders == buyers, duplicate_buyers=0, sold_count=50, outbox_new=0:
+no oversell, no duplicate, no loss. Only the spec's equality orders == accepted_202 does not hold (50 vs 49).

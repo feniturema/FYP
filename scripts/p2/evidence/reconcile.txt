@@ -1,0 +1,6 @@
+event 5 (1-minute window, end_time 2026-10-04T10:11:24Z); buys: 202 ACCEPTED; 202 ACCEPTED; 202 ACCEPTED; 202 ACCEPTED; 202 ACCEPTED; 
+orders	buyers	paid	failed	pending	duplicate_buyers	sold_count	outbox_new	outbox_total
+5	5	5	0	0	0	5	0	5
+reconciled: 1
+reconciler log:
+2026-10-04T10:14:14.432Z  INFO 1 --- [ftsm-ecommerce] [   scheduling-2] m.e.u.f.e.service.SeckillReconciler      : [SecKill] reconcile event 5: consistent (pending=0 published=5 orders=5 sold_count=5 redisSold=5)

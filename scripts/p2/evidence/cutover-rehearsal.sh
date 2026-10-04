@@ -13,6 +13,8 @@
 #    then archive the legacy stream (RENAME, not delete).
 # Kafka is not attached in this rehearsal (the pipeline is covered by A4–A12); only the DB/Redis
 # cutover is rehearsed. Cleans up everything it started.
+# Revised after the A13 run on 6688532 (no behaviour change): the JWT secret is random per run and the
+# seed admin password is read from application.yml instead of being written in this file.
 set -Eeuo pipefail
 
 REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
@@ -21,7 +23,7 @@ P2_TMP=${P2_TMP:?set P2_TMP}
 P2_JAR=${P2_JAR:-backend/target/ecommerce-0.0.1-SNAPSHOT.jar}
 OUT=$REPO/scripts/p2/evidence/cutover.txt
 export P0_MYSQL_MODE=docker P0_TMP=$P2_TMP DB_PASSWORD=root
-export JWT_SECRET=p2-cutover-secret-0123456789abcdef0123456789
+export JWT_SECRET=$(openssl rand -hex 32)   # throwaway, never written anywhere
 source scripts/db/lib.sh
 DB=ftsm_p2_cutover PORT=18095 BASE=http://127.0.0.1:18095
 WT=$P2_TMP/wt-p1
@@ -59,14 +61,16 @@ redis_cli FLUSHALL > /dev/null
 start_backend "$P1_JAR" "$DB" "$PORT" "$LOG1"
 say "## P1 backend up; e2e on P1 (history)"
 python3 scripts/e2e_test.py --base "$BASE" --log "$LOG1" --users 30 --stock 10 | tee -a "$OUT"
-FUTURE=$(python3 - "$BASE" <<'PY'
-import datetime as d, json, sys, urllib.request
+# Seed admin password: the application default from application.yml (overridable), not written here.
+ADMIN_PASS=${SEED_ADMIN_PASSWORD:-$(sed -n 's/.*\${SEED_ADMIN_PASSWORD:\(.*\)}.*/\1/p' backend/src/main/resources/application.yml)}
+FUTURE=$(ADMIN_PASS=$ADMIN_PASS python3 - "$BASE" <<'PY'
+import datetime as d, json, os, sys, urllib.request
 base = sys.argv[1]
 def call(m, p, body=None, tok=None):
     r = urllib.request.Request(base + p, data=json.dumps(body).encode() if body else None, method=m,
                                headers={"Content-Type": "application/json", **({"Authorization": "Bearer " + tok} if tok else {})})
     return json.load(urllib.request.urlopen(r, timeout=10))
-tok = call("POST", "/api/auth/login", {"email": "admin@ukm.edu.my", "password": "Admin@123"})["token"]
+tok = call("POST", "/api/auth/login", {"email": "admin@ukm.edu.my", "password": os.environ["ADMIN_PASS"]})["token"]
 pid = call("POST", "/api/admin/products", {"name": "future event product", "price": 10, "totalStock": 30, "category": "Test"}, tok)["id"]
 now = d.datetime.now(d.timezone.utc)
 iso = lambda t: t.isoformat().replace("+00:00", "Z")
