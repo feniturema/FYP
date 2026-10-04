@@ -71,7 +71,8 @@ loadtest/run.sh --config warmup --scenario throughput --rate 50 --ramp 5 --stead
   "${common[@]}" --out-root "$out_root/$name" || warm_rc=$?
 echo "run_config: warm-up rc=$warm_rc (not counted)" >&2
 
-# 5. the measured run
+# 5. the measured run (remember which run dirs existed, so step 7 only looks at the one created now)
+before=$(ls -d "$out_root/$name"/*-"$name"-"$scenario" 2>/dev/null || true)
 rc=0
 loadtest/run.sh --config "$name" --scenario "$scenario" "$@" "${common[@]}" || rc=$?
 
@@ -79,9 +80,11 @@ loadtest/run.sh --config "$name" --scenario "$scenario" "$@" "${common[@]}" || r
 stop; trap - EXIT
 
 # 7. reset only when nothing can still be consuming: no k6 process, and the drain of the run succeeded
-run_dir=$(ls -dt "$out_root/$name"/*-"$name"-"$scenario" 2>/dev/null | head -n 1)
+run_dir=$(comm -13 <(printf '%s\n' "$before" | sort) <(ls -d "$out_root/$name"/*-"$name"-"$scenario" 2>/dev/null | sort) | tail -n 1)
 drain_rc=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("drain_rc"))' "$run_dir/run.json" 2>/dev/null || echo none)
-if pgrep -f 'k6[^ ]* run' >/dev/null; then
+if [[ -z $run_dir ]]; then
+  echo "run_config: run.sh created no run directory; nothing to reset" >&2
+elif pgrep -f 'k6[^ ]* run' >/dev/null; then
   echo "run_config: a k6 process is still running; NOT resetting" >&2
 elif [[ $drain_rc != 0 ]]; then
   echo "run_config: drain of $run_dir did not succeed (drain_rc=$drain_rc); NOT resetting" >&2
