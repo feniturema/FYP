@@ -1,0 +1,10 @@
+paused_at	unpaused_at	k6_finished_before	max_outbox_new_while_paused	accepted_202	run_rc
+2026-10-04T10:07:59Z	2026-10-04T10:08:30Z	2026-10-04T10:08:11Z	20	20	0
+run dir: runs/P2-kafka-pause/20261004T100800Z-P2-kafka-pause-contention
+orders	buyers	paid	failed	pending	duplicate_buyers	sold_count	outbox_new	outbox_total
+20	20	20	0	0	0	20	0	20
+key	value
+seckill:stock:{3}	0
+scard seckill:bought:{3}	20
+2026-10-04T10:08:31Z drain: outbox drained for event 3 (new=0 lag=0 orders=20 outbox=20)
+2026-10-04T10:08:32Z run.sh: verify: ok: orders=20 buyers=20 accepted=20 redis_stock=0

@@ -9,7 +9,8 @@ Exercises the full critical path against a RUNNING backend (+ MySQL + Redis):
   4. Admin creates a B2C product + a SecKill event
   5. SecKill anti-oversell concurrency test (N users race for STOCK units)
   6. Per-user duplicate-purchase guard
-  7. Order persistence reconciliation (MySQL order count == accepted count)
+  7. Order persistence: a winner's SECKILL order appears (polled for up to 30 s, since P2 the
+     order is written asynchronously via outbox -> Kafka -> listener)
 
 Usage:
   python3 scripts/e2e_test.py [--base http://localhost:8080] [--log /tmp/ftsm-real.log]
@@ -52,6 +53,13 @@ def find_otp(log_path, email):
             if m:
                 code = m.group(1)
     return code
+
+def buy_result(status, body):
+    """Business result of a SecKill buy response. The body is a SeckillBuyResponse for every
+    contract status (202 / 200 before P2, 202 / 409 / 503 since P2), so it is read the same way."""
+    if isinstance(body, dict) and body.get("result"):
+        return body["result"]
+    return f"HTTP{status}"
 
 def ok(label, cond):
     print(("  PASS " if cond else "  FAIL ") + label)
@@ -123,7 +131,7 @@ def main():
     outcomes = []
     def buy(tok):
         st, r = call(base, "POST", f"/api/seckill/{eid}/buy", token=tok)
-        return r.get("result") if isinstance(r, dict) else f"HTTP{st}"
+        return buy_result(st, r)
     with ThreadPoolExecutor(max_workers=50) as ex:
         outcomes = list(ex.map(buy, tokens))
     accepted = outcomes.count("ACCEPTED")
@@ -141,20 +149,20 @@ def main():
     dup_ok = False
     if winner:
         st, r = call(base, "POST", f"/api/seckill/{eid}/buy", token=winner)
-        dup_ok = isinstance(r, dict) and r.get("result") == "ALREADY_BOUGHT"
+        dup_ok = buy_result(st, r) == "ALREADY_BOUGHT"
     results.append(ok("re-buy by winner -> ALREADY_BOUGHT", dup_ok))
 
-    print("\n[7] Order reconciliation: wait for stream consumer to persist orders")
-    time.sleep(3)
-    # spot-check: a winner can see a PAID order via tracking poll done earlier;
-    # here we re-buy via a fresh user is not possible (sold out). Instead verify a
-    # winner's order count by listing their orders.
+    print("\n[7] Order reconciliation: wait (<=30s) for the order pipeline to persist orders")
+    # A winner must see its SECKILL order in "My Orders"; poll instead of a fixed sleep.
     persisted_ok = False
-    if winner:
+    deadline = time.monotonic() + 30
+    while winner and not persisted_ok and time.monotonic() < deadline:
         st, orders = call(base, "GET", "/api/orders", token=winner)
         persisted_ok = isinstance(orders, list) and any(
             o.get("sourceType") == "SECKILL" and o.get("status") in ("PAID", "PENDING")
             for o in orders)
+        if not persisted_ok:
+            time.sleep(1)
     results.append(ok("winner has a persisted SECKILL order", persisted_ok))
 
     print("\n=== SUMMARY ===")

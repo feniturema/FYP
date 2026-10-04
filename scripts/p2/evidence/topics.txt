@@ -1,0 +1,10 @@
+$ kafka-topics.sh --bootstrap-server localhost:9092 --list
+__consumer_offsets
+seckill.orders
+seckill.orders.DLT
+$ kafka-topics.sh --describe (partition counts)
+Topic: seckill.orders.DLT	PartitionCount: 1	ReplicationFactor: 1	Configs: 
+Topic: __consumer_offsets	PartitionCount: 50	ReplicationFactor: 1	Configs: compression.type=producer,cleanup.policy=compact,segment.bytes=104857600
+Topic: seckill.orders	PartitionCount: 6	ReplicationFactor: 1	Configs: 
+$ GET /actuator/health
+{"status":"UP"}

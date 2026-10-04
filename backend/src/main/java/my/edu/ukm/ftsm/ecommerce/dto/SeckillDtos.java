@@ -38,11 +38,24 @@ public final class SeckillDtos {
             String status
     ) {}
 
-    /** Returned by the buy endpoint (202 Accepted). */
+    /** Returned by the buy endpoint: 202 ACCEPTED, 409 SOLD_OUT/ALREADY_BOUGHT/NOT_ACTIVE, 503 UNAVAILABLE. */
     public record SeckillBuyResponse(
-            String result,        // ACCEPTED | SOLD_OUT | ALREADY_BOUGHT | NOT_ACTIVE
+            String result,        // ACCEPTED | SOLD_OUT | ALREADY_BOUGHT | NOT_ACTIVE | UNAVAILABLE
             String trackingToken, // present only on ACCEPTED
             String message
+    ) {}
+
+    /**
+     * Kafka message v1 on {@code seckill.orders} (key = eventId), stored as JSON in
+     * {@code order_outbox.payload}. Fields may only be added, never renamed or removed.
+     */
+    public record SeckillOrderMessage(
+            String orderId,        // UUID v4 string, == orders.tracking_token, NOT NULL
+            Long userId,           // NOT NULL
+            Long eventId,          // NOT NULL, Kafka key (String.valueOf)
+            Long productId,        // NOT NULL
+            BigDecimal price,      // NOT NULL, scale 2
+            Instant acceptedAt     // NOT NULL
     ) {}
 
     /** Returned by the result-polling endpoint. */

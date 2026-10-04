@@ -1,0 +1,19 @@
+# Tracking tokens (UUIDs) are replaced by consistent pseudonyms tok-<sha256[:12]>; the mapping is the same in every file.
+commit under test: e00b3516dbec54e4be26984444d8277c58346cc2; event 1; SIGKILL at 2026-10-04T10:30:56Z; k6 still sending: yes
+drain after recovery: rc=0 in 35s (limit 180 s)
+
+$ scripts/p2/verify_crash.py --requests crash-requests.txt --orders crash-orders.tsv --outbox crash-outbox.tsv --stock 50 --sold-count 10
+requests=200 received_202=10 no_response=190 other=0 | orders=10 (matched to a received 202: 10, without a received 202: 0) | outbox=10 | stock=50 sold_count=10
+verify_crash: PASS
+rc=0 (want 0)
+
+## negative control: same data with the order of 202 token tok-63a25029aa6a removed
+requests=200 received_202=10 no_response=190 other=0 | orders=9 (matched to a received 202: 9, without a received 202: 0) | outbox=10 | stock=50 sold_count=10
+PROBLEM: 202 token tok-63a25029aa6a (user 2000000000) has NO order
+PROBLEM: sold_count 10 != orders 9
+PROBLEM: committed outbox rows without an order: ['tok-63a25029aa6a']
+verify_crash: FAIL
+rc=1 (want 1)
+
+## verify_crash.py --self-test
+self-test: PASS

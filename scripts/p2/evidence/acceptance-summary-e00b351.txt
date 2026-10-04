@@ -1,0 +1,7 @@
+acceptance: commit e00b3516dbec54e4be26984444d8277c58346cc2 dirty=no at 2026-10-04T10:30:20Z
+A2	PASS	rc=0	29s
+A3	PASS	rc=0	0s
+A6	PASS	rc=0	52s
+A7	PASS	rc=0	42s
+A12	PASS	rc=0	7s
+acceptance: done, first failure rc=0 (logs in /tmp/ftsm-p2.jSmkaA/logs)

@@ -9,6 +9,8 @@ import java.util.Optional;
 public interface OrderRepository extends JpaRepository<Order, Long> {
     List<Order> findByBuyerIdOrderByCreatedAtDesc(Long buyerId);
     Optional<Order> findByTrackingToken(String trackingToken);
+    boolean existsByTrackingToken(String trackingToken);
+    long countBySeckillEventId(Long seckillEventId);
     boolean existsByBuyerIdAndSourceTypeAndRefIdAndStatus(Long buyerId, Order.SourceType sourceType,
                                                           Long refId, Order.Status status);
 }

@@ -10,7 +10,8 @@ import { Counter } from 'k6/metrics';
 export const seckillResults = new Counter('seckill_results');
 export const seckillMismatch = new Counter('seckill_mismatch');
 
-export const REJECT_STATUS = Number(__ENV.REJECT_STATUS || 200);
+// Default 409 since P2; configs that run pre-P2 code (A-baseline, P0, P1) must pass REJECT_STATUS=200.
+export const REJECT_STATUS = Number(__ENV.REJECT_STATUS || 409);
 
 // Only the statuses the contract allows count as non-failed in http_req_failed.
 http.setResponseCallback(http.expectedStatuses(202, REJECT_STATUS));

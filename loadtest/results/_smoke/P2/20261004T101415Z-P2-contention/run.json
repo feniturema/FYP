@@ -1,0 +1,42 @@
+{
+  "runId": "20261004T101415Z-P2-contention",
+  "gitSha": "66885321d2f0fa3a08f67f9eb9f3a2a40fd0fd87",
+  "gitDirty": false,
+  "config": "P2",
+  "scenario": "contention",
+  "eventId": 6,
+  "productId": 10,
+  "startedAt": "2026-10-04T10:14:15Z",
+  "finishedAt": "2026-10-04T10:14:19Z",
+  "k6_rc": 0,
+  "drain_rc": 0,
+  "verify_ok": true,
+  "verify_detail": "ok: orders=5 buyers=5 accepted=5 redis_stock=0",
+  "exit_code": 0,
+  "params": {
+    "base": "http://127.0.0.1:28080",
+    "stock": "5",
+    "buyers": "20",
+    "vus": "20",
+    "rate": "",
+    "ramp": "",
+    "steady": "",
+    "rejectStatus": "409",
+    "drain": "outbox",
+    "mysql": "compose:ftsm-p2-acc:/tmp/ftsm-p2.jSmkaA/compose.env:ftsm_ecommerce",
+    "redis": "compose:ftsm-p2-acc:/tmp/ftsm-p2.jSmkaA/compose.env",
+    "userBase": "1800000000",
+    "runSeq": "       8"
+  },
+  "environment": {
+    "os": "Darwin 24.0.0",
+    "arch": "arm64",
+    "cpus": "8",
+    "memTotalKb": "unknown",
+    "k6": "k6 v2.3.0 (commit/e088784614, go1.27.1, linux/arm64)",
+    "java": "java version \"21.0.1\" 2023-10-17 LTS",
+    "mysql": "8.0.46",
+    "redis": "8.10.2",
+    "mysqlMode": ""
+  }
+}

@@ -10,7 +10,8 @@ import java.time.Instant;
  * Unified order/transaction across all sale channels.
  */
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", uniqueConstraints = @UniqueConstraint(
+        name = "uk_orders_buyer_seckill", columnNames = {"buyer_id", "seckill_event_id"}))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -36,6 +37,9 @@ public class Order {
     /** itemId / productId / seckillEventId depending on sourceType. */
     @Column(nullable = false)
     private Long refId;
+
+    /** Set only for SECKILL orders (== refId); one order per buyer per event (uk_orders_buyer_seckill). */
+    private Long seckillEventId;
 
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;

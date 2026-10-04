@@ -13,6 +13,7 @@
 | Upgrade implementation spec (v0.4.4), agent-executable revision (v0.4.5), per-phase execution packages (v0.4.6) | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md`, `docs/phases/`, `docs/agent-prompts/` |
 | Upgrade P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke tooling | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.5.0; `docs/phases/P0.md` |
 | Upgrade P1: Java 21, Spring Boot 3.5.16 (D1), virtual threads | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.6.0; `docs/phases/P1.md` |
+| Upgrade P2: transactional outbox + Kafka SecKill pipeline, conditional stock updates | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.7.0; `docs/phases/P2.md` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -42,19 +43,22 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
-| Automated tests | ⚠️ 5 JUnit tests (3 classes) + `scripts/e2e_test.py` (8 checks); no SecKill service/integration test yet |
+| Automated tests | ✅ 55 JUnit tests (13 classes; SecKill buy/outbox/listener/reconciler/controller + H2 transaction tests since P2) + `scripts/e2e_test.py` (8 checks) + `scripts/p2/acceptance.sh` (compose fault-injection acceptance); no Testcontainers IT yet (P6a) |
 | Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
 | Maven Wrapper `backend/mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0) — use `cd backend && ./mvnw` until P4a moves it to the repo root |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
 | Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0) — smoke runs only; formal baseline measured by a person before P3 |
 | Java 21 + Boot 3.5.16 (Hibernate 6.6.53, Flyway 11.7.2, Lombok 1.18.46, Connector/J 9.7.0, springdoc 2.8.17) | ✅ P1 (v0.6.0) — D1=boot-3.5.16; no V1_1 migration was needed (fresh and upgraded schemas identical) |
 | Virtual threads (`VIRTUAL_THREADS`, default on) + `DB_POOL_SIZE` (default 20) | ✅ P1 (v0.6.0) — e2e and contention smoke pass with both settings; no pinned stacks observed (`scripts/db/evidence/p1/pinning.txt`) |
+| SecKill pipeline: MySQL outbox (`V2__seckill_outbox.sql`) → `OutboxRelay` → Kafka `seckill.orders` → `SeckillOrderListener`; 202 / 409 / 503; event-window cache; `SeckillReconciler` + `OutboxJanitor` | ✅ P2 (v0.7.0) — Redis Stream consumer removed; Redis 8.10.2 with AOF; keys hash-tagged `seckill:stock:{<id>}`. Acceptance A1–A14 pass (`scripts/p2/evidence/`). A6 was revised on 2026-10-04 (maintainer-approved) to per-request reconciliation with `scripts/p2/verify_crash.py`, because the old `orders == 202 received` contradicted §6.1; the old-spec failure is kept as `A6-oldspec-*` |
+| Normal B2C / C2C checkout race | ✅ P2 (v0.7.0) — conditional `UPDATE` (`decrementStock`, `markSold`) inside `OrderService.create`'s transaction; A10: 20 concurrent buyers of a 1-unit product → exactly one order |
 | Container image on Java 21 (`eclipse-temurin:21.0.12.1_1-jre-noble`, `JAVA_OPTS`) | ✅ P1 (v0.6.0) — container acceptance passed on local Docker Desktop: A9 image build on the pinned base, A10 health/API/Swagger, A11 in-container e2e 8/8; A12 cleanup complete. Evidence: `scripts/db/evidence/p1/container/` (commit `96a7d36`; `A11-backend.log` redactions in `redactions.txt`) |
 
 ### Verified by `scripts/e2e_test.py` (8/8 passing)
 Admin login · non-UKM rejected (403) · 60 OTP registrations · product+event creation ·
 scheduler warms+activates event · **60 users race 20 units → exactly 20 win, no oversell** ·
-duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consumer.
+duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via the outbox → Kafka pipeline
+(step 7 polls up to 30 s). Since P2, rejections arrive as HTTP 409 with the same JSON body.
 
 ---
 
@@ -64,14 +68,16 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consu
   ```bash
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
   ```
-- **External services (the original author's macOS dev machine used Homebrew):**
-  - Redis 7 — `redis-cli ping` → `PONG`  (start: `brew services start redis`)
-  - MySQL 9 — `mysqladmin ping`  (start: `brew services start mysql`); **root has no local password**
+- **External services:** MySQL, Redis and (since P2) Kafka. Easiest: the compose services
+  `docker compose up -d mysql redis kafka` (MySQL root/root on 3306, Redis 6379, Kafka 29092; run
+  the backend with `KAFKA_BOOTSTRAP=127.0.0.1:29092`). The original author's macOS machine used
+  Homebrew MySQL 9 (root without password → `DB_PASSWORD=""`) and Redis; Kafka still has to come
+  from compose or another broker.
 - **Backend (dev):**
   ```bash
   cd backend
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-  DB_PASSWORD="" ./mvnw spring-boot:run       # MySQL on localhost, db auto-created; Flyway migrates
+  KAFKA_BOOTSTRAP=127.0.0.1:29092 ./mvnw spring-boot:run   # db auto-created; Flyway migrates (V1, V2)
   # API http://localhost:8080 · Swagger http://localhost:8080/swagger-ui.html
   # Seeded admin: admin@ukm.edu.my / Admin@123
   # OTP codes are printed to the console (mail disabled by default)
@@ -80,10 +86,13 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consu
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
-- **Tests:** `cd backend && ./mvnw -B verify` (5 tests; H2, Flyway off).
+- **Tests:** `cd backend && ./mvnw -B verify` (55 tests; Mockito + H2 slices, Flyway off, no broker).
+  The `h2` runtime profile was removed in P2 (H2 is test scope only).
 - **Shared helpers for acceptance runs:** `scripts/lib/wait.sh` (`wait_http`, `wait_cmd` — every
   readiness wait must go through these), `scripts/db/lib.sh` (temporary MySQL 3307 / Redis 6380,
-  `start_backend`), `loadtest/run.sh` (k6 smoke/benchmark runs).
+  `start_backend`; `compose:<project>:<env-file>[:<db>]` targets since P2), `loadtest/run.sh`
+  (k6 smoke/benchmark runs; `--drain outbox --reject-status 409` for P2+ code),
+  `scripts/p2/acceptance.sh` (P2 acceptance in compose project `ftsm-p2-acc`).
 - **E2E test (backend must be running, with its log captured):**
   ```bash
   # if you started via jar: java -jar target/*.jar > /tmp/ftsm-real.log 2>&1 &
@@ -98,18 +107,22 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consu
 ```
 React SPA ──/api──> Spring MVC controllers ──> services ──> JPA repos ──> MySQL
                                    │
-SecKill buy ─► Lua (atomic deduct in Redis) ─► XADD seckill:orders (Redis Stream)
-                                   │                                  │
-                          202 + trackingToken              SeckillStreamConsumer (poll)
-                                   │                                  │
-                    client polls /seckill/result         persists Order + mock payment
+SecKill buy ─► event window (Caffeine 5 s) ─► Lua deduct in Redis (T0) ─► INSERT order_outbox (T1, autocommit)
+                                   │                                              │
+                 202 + trackingToken / 409 / 503            OutboxRelay (100 ms): SKIP LOCKED batch ─► Kafka seckill.orders (T2)
+                                   │                                              │
+                    client polls /seckill/result          SeckillOrderListener ─► SeckillOrderWriter (T3: order + sold_count + FAKE_WALLET)
+                                                                  │ failures: 3 retries ─► seckill.orders.DLT
+                                                          SeckillReconciler (60 s) · OutboxJanitor (hourly)
 ```
-- **Hot path never writes to MySQL.** It does one `findById` on `seckill_events` to check the
-  time window, then everything else is Redis: `seckill:stock:<eventId>` and
-  `seckill:bought:<eventId>` (plain ids, no `{}` hash tag). Orders are written
-  asynchronously by the consumer, which also settles payment with `FAKE_WALLET`.
-- Sold out / already bought / not active return **HTTP 200** with a `result` code; only
-  `ACCEPTED` returns 202.
+- **The hot path writes exactly one MySQL row** (the outbox INSERT, outside any Spring transaction)
+  and only answers 202 after it succeeded. Redis keys: `seckill:stock:{<eventId>}` and
+  `seckill:bought:{<eventId>}` (hash-tagged). The listener is idempotent through
+  `orders.tracking_token` and `uk_orders_buyer_seckill (buyer_id, seckill_event_id)`.
+- `ACCEPTED` → 202; `SOLD_OUT` / `ALREADY_BOUGHT` / `NOT_ACTIVE` → **409**; `UNAVAILABLE` → **503**
+  (outbox write not confirmed). Body is always `SeckillBuyResponse`.
+- Every transaction boundary and failure case (what is retried, what may undersell, what is never
+  compensated) is the table in `docs/phases/P2.md` §6.1 — read it before touching this path.
 - OTP codes live in Redis (`otp:{email}`, 5-min TTL).
 
 ---
@@ -153,7 +166,8 @@ POST /api/auth/register · /api/auth/verify-otp · /api/auth/resend-otp · /api/
 GET  /api/items · /api/items/{id}    POST/PUT/DELETE /api/items[/{id}]   (auth; owner-scoped)
 GET  /api/products · /api/products/{id}
 GET  /api/seckill/events · /api/seckill/events/{id}
-POST /api/seckill/{eventId}/buy  (202 + token)    GET /api/seckill/result?token=
+POST /api/seckill/{eventId}/buy  (202 + token | 409 SOLD_OUT/ALREADY_BOUGHT/NOT_ACTIVE | 503 UNAVAILABLE)
+GET  /api/seckill/result?token=   (PENDING until the order is written)
 GET  /api/orders · /api/orders/{id}   POST /api/orders   POST /api/orders/{id}/pay
 GET/POST /api/reviews
 POST /api/chat   (auth; DeepSeek assistant, live)
@@ -255,22 +269,27 @@ Write at least a happy-path test where noted.
 2. **MySQL reserved words** — `condition` → `item_condition`. Check new columns.
 3. **Actuator mail health** — disabled in `application.yml` (`management.health.mail.enabled=false`)
    so a missing SMTP doesn't make `/health` report DOWN.
-4. **SecKill timing** — a background `@Scheduled` (every 10s) warms Redis stock and flips event
-   status. After creating an event, allow up to ~10s before it's buyable.
-5. **Local MySQL root has no password** — run backend with `DB_PASSWORD=""` in dev.
+4. **SecKill timing** — a background `@Scheduled` (every 10s) warms Redis stock (`SET NX`) and
+   flips event status. After creating an event, allow up to ~10s before it's buyable. Orders
+   appear asynchronously (outbox → Kafka), normally well under a second.
+5. **Local MySQL root has no password** (Homebrew setup) — run backend with `DB_PASSWORD=""` in dev.
+6. **`SeckillEvent` uses `@DynamicUpdate`** so status/flag saves never overwrite `sold_count`,
+   which the listener changes with a conditional `UPDATE`. Keep it, or never save stale events.
 
 ### Known gaps (NOT handled yet — see `docs/UPGRADE_PLAN.md` §1 for the fix plan)
 
-6. **Single replica only.** `SeckillService.reconcileEvents()` runs on every instance; two
-   replicas could both see `stockWarmed=false` and re-`SET` Redis stock after sales began.
-7. **Normal checkout race.** `OrderService.buildProductOrder` / `buildItemOrder` do
-   read-modify-write without a row lock or conditional `UPDATE`, so concurrent buyers can
-   oversell a B2C product or double-sell a C2C item. (SecKill is not affected.)
-8. **Redis Stream durability.** Lua deduction and `XADD` are separate calls; Redis runs with
-   default RDB snapshots only. A crash between them, or a Redis restart, can lose accepted
-   orders (results in under-selling, never oversell).
-9. **Uploads on local disk** (`UPLOAD_DIR` / `uploads_data` volume) — not shared across replicas.
-10. **`prod` profile** is set by Docker Compose but has no overrides in `application.yml`.
+7. **Single replica only.** The scheduled tasks (`reconcileEvents`, `OutboxRelay`,
+   `SeckillReconciler`, `OutboxJanitor`) run on every instance; warm-up is `SET NX` now, but the
+   relay/reconciler are not designed for several instances until ShedLock (P6b).
+8. **SecKill can undersell in four rare windows** (crash between Redis and the outbox INSERT,
+   unconfirmable INSERT, failed compensation, consumer backlog not drained within the grace).
+   The reconciler reports them (`seckill.reconcile.*` counters, WARN logs); nothing is repaired
+   automatically. Oversell is prevented twice (Lua, `sold_count < seckill_stock`).
+9. **DLT publish failure blocks the partition** until the DLT is reachable (unverified Spring Kafka
+   behaviour; P6a `DltPublishFailureIT` must prove it).
+10. **Uploads on local disk** (`UPLOAD_DIR` / `uploads_data` volume) — not shared across replicas.
+11. **`prod` profile** is set by Docker Compose but has no overrides in `application.yml`.
+(The P0-era gaps "normal checkout race" and "Redis Stream durability" were closed in P2.)
 
 ---
 
@@ -285,7 +304,9 @@ Write at least a happy-path test where noted.
 - ⬜ Next: v0.5+ upgrade. Master spec: `docs/CHANGE_SPEC.md` (dependencies, registries, coverage matrix).
   Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
-  P0 (v0.5.0) and P1 (v0.6.0) are implemented; P2 starts only after the P1 PR is merged.
+  P0 (v0.5.0), P1 (v0.6.0) and P2 (v0.7.0) are implemented; P3 starts only after the P2 PR is merged.
+  Production cutover to v0.7.0 with existing data is a manual step (README "Upgrading … to v0.7.0",
+  `scripts/p2/precheck_cutover.py`, `docs/phases/P2.md` §10.1).
   D1 decided 2026-10-04: `D1=boot-3.5.16` (stay on Boot 3.5.16; no further OSS patches on the 3.5 line).
   Human decisions pending: D2 (embedding provider, gates P5b), D3 (implement P7).
 

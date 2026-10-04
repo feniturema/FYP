@@ -1,0 +1,7 @@
+# OLD SPEC (A6 assertion before the 2026-10-04 revision: orders == received 202). Run on commit 6688532; result FAIL (orders 50, received 202 = 49).
+# Kept unchanged below as the record of that run; the revised A6 evidence is crash.tsv / crash-verify.txt.
+event_id	k6_running_at_kill	killed_at	accepted_202
+2	yes	2026-10-04T10:07:11Z	49
+orders	buyers	paid	failed	pending	duplicate_buyers	sold_count	outbox_new	outbox_total
+50	50	50	0	0	0	50	0	50
+k6 result counts: {'ACCEPTED': 49, 'SOLD_OUT': 51, 'ALREADY_BOUGHT': 0, 'NOT_ACTIVE': 0, 'UNAVAILABLE': 0, 'UNPARSEABLE': 100}

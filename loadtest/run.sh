@@ -3,8 +3,12 @@
 #
 # loadtest/run.sh --config <A-baseline|P0|...> --scenario <throughput|contention> [--base URL] \
 #                 [--jwt-secret-env JWT_SECRET] --stock N [--buyers N --vus N | --rate N --ramp S --steady S] \
-#                 --reject-status 200|409 --drain stream|outbox|none --mysql temp:<db> --redis temp \
+#                 --reject-status 200|409 --drain stream|outbox|none --mysql <target> --redis <target> \
 #                 [--out-root loadtest/results/_smoke]
+# Targets: temp:<db> / temp (scripts/db/lib.sh), or compose:<project>:<env-file>[:<db>] (P2+).
+# --drain outbox (P2+) needs a compose MySQL target and verifies with loadtest/verify_outbox.sql
+# against hash-tagged Redis keys (seckill:stock:{<id>}); stream/none use verify_legacy.sql and the
+# pre-P2 key names. Pre-P2 code must be run with --reject-status 200.
 #
 # Writes <out-root>/<config>/<RUN_ID>/{run.json,summary.json,k6.log,verify.tsv,redis.txt}.
 # Exit code: k6's exit code if non-zero (99 = thresholds failed), otherwise the first failure of
@@ -16,7 +20,7 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=../scripts/db/lib.sh
 source "$REPO/scripts/db/lib.sh"
 
-usage() { sed -n '2,13p' "${BASH_SOURCE[0]}" >&2; exit 2; }
+usage() { sed -n '2,17p' "${BASH_SOURCE[0]}" >&2; exit 2; }
 
 config= scenario= base=http://127.0.0.1:8080 secret_env=JWT_SECRET stock= buyers= vus=
 rate= ramp= steady= reject_status= drain= mysql_target= redis_target= out_root=loadtest/results/_smoke
@@ -115,7 +119,7 @@ RJ_PARAMS=$(python3 -c 'import json,sys; a=sys.argv[1:]; print(json.dumps(dict(z
   steady "${steady:-}" rejectStatus "$reject_status" drain "$drain" mysql "$mysql_target" \
   redis "$redis_target" userBase "$user_base" runSeq "$run_seq")
 RJ_ENV=$(python3 -c 'import json,sys; a=sys.argv[1:]; print(json.dumps(dict(zip(a[::2], a[1::2]))))' \
-  os "$(uname -sr)" arch "$(uname -m)" cpus "$(nproc)" \
+  os "$(uname -sr)" arch "$(uname -m)" cpus "$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN)" \
   memTotalKb "$(awk '/MemTotal/{print $2}' /proc/meminfo 2>/dev/null || echo unknown)" \
   k6 "$k6_version" java "$(java -version 2>&1 | grep -m1 -E 'version' || echo unknown)" \
   mysql "$(mysql_target_cli "$mysql_target" --batch --skip-column-names -e 'SELECT VERSION()' 2>/dev/null || echo unknown)" \
@@ -147,16 +151,25 @@ export RJ_K6_RC=$k6_rc
 
 # Step 4: wait for the consumer to persist everything.
 drain_rc=0
-"$REPO/loadtest/drain.sh" "$drain" --redis "$redis_target" --timeout 120 || drain_rc=$?
+if [[ $drain == outbox ]]; then
+  "$REPO/loadtest/drain.sh" outbox --event "$event_id" --mysql "$mysql_target" --timeout 180 || drain_rc=$?
+else
+  "$REPO/loadtest/drain.sh" "$drain" --redis "$redis_target" --timeout 120 || drain_rc=$?
+fi
 export RJ_DRAIN_RC=$drain_rc
 
-# Step 5: database and Redis evidence.
-{ echo "SET @event_id = $event_id;"; cat "$REPO/loadtest/verify.sql"; } \
+# Step 5: database and Redis evidence (P2 renamed the keys to seckill:<kind>:{<id>}).
+if [[ $drain == outbox ]]; then
+  verify_sql=$REPO/loadtest/verify_outbox.sql stock_key="seckill:stock:{$event_id}" bought_key="seckill:bought:{$event_id}"
+else
+  verify_sql=$REPO/loadtest/verify_legacy.sql stock_key="seckill:stock:$event_id" bought_key="seckill:bought:$event_id"
+fi
+{ echo "SET @event_id = $event_id;"; cat "$verify_sql"; } \
   | mysql_target_cli "$mysql_target" --batch > "$dir/verify.tsv"
 {
   printf 'key\tvalue\n'
-  printf 'seckill:stock:%s\t%s\n' "$event_id" "$(redis_target_cli "$redis_target" GET "seckill:stock:$event_id")"
-  printf 'scard seckill:bought:%s\t%s\n' "$event_id" "$(redis_target_cli "$redis_target" SCARD "seckill:bought:$event_id")"
+  printf '%s\t%s\n' "$stock_key" "$(redis_target_cli "$redis_target" GET "$stock_key")"
+  printf 'scard %s\t%s\n' "$bought_key" "$(redis_target_cli "$redis_target" SCARD "$bought_key")"
 } > "$dir/redis.txt"
 
 # Step 6: orders == buyers == accepted (whole test); contention also needs Redis stock 0.
@@ -175,6 +188,11 @@ v = rows[0] if rows else {}
 orders, buyers = int(v.get("orders", -1)), int(v.get("buyers", -1))
 if not (orders == buyers == accepted):
     problems.append(f"orders={orders} buyers={buyers} accepted={accepted}")
+if "sold_count" in v:   # verify_outbox.sql (P2+): MySQL-side counter and outbox must agree too
+    if int(v["sold_count"]) != orders:
+        problems.append(f"sold_count={v['sold_count']} orders={orders}")
+    if int(v["outbox_new"]) != 0:
+        problems.append(f"outbox_new={v['outbox_new']} (want 0)")
 redis = dict(l.rstrip("\n").split("\t", 1) for l in open(os.path.join(d, "redis.txt")) if "\t" in l)
 stock_key = next((k for k in redis if k.startswith("seckill:stock:")), None)
 remaining = redis.get(stock_key, "")

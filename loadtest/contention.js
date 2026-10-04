@@ -1,7 +1,7 @@
 // Contention scenario: BUYERS distinct synthetic users (VUS concurrent) race for STOCK units.
 // Exactly STOCK must be ACCEPTED and BUYERS - STOCK SOLD_OUT; nobody may be ALREADY_BOUGHT.
-// Env: BASE_URL, EVENT_ID, JWT_SECRET, STOCK, BUYERS, VUS, USER_BASE, REJECT_STATUS,
-//      SUMMARY_PATH, RUN_ID, K6_VERSION.
+// Env: BASE_URL, EVENT_ID, JWT_SECRET, STOCK, BUYERS, VUS, USER_BASE, REJECT_STATUS (default 409 from P2; pass 200 for A/P0/P1),
+//      SUMMARY_PATH, RUN_ID, K6_VERSION, REQUEST_LOG (1 = one `REQ ...` console line per request).
 import http from 'k6/http';
 import exec from 'k6/execution';
 import { studentToken } from './lib/jwt.js';
@@ -14,6 +14,7 @@ const STOCK = Number(__ENV.STOCK);
 const BUYERS = Number(__ENV.BUYERS);
 const VUS = Number(__ENV.VUS || BUYERS);
 const USER_BASE = Number(__ENV.USER_BASE || 1000000000);
+const REQUEST_LOG = __ENV.REQUEST_LOG === '1';   // P2 A6: log every request (see below)
 
 export const options = {
   scenarios: {
@@ -42,7 +43,14 @@ export default function () {
     headers: { Authorization: `Bearer ${studentToken(userId, SIGNING_KEY)}` },
     tags: { name: 'seckill_buy' },
   });
-  recordBuy(res);
+  const result = recordBuy(res);
+  if (REQUEST_LOG) {
+    // One line per request for per-request reconciliation (P2 A6, scripts/p2/verify_crash.py).
+    // status 0 = no HTTP response (connection error); token only on 202. Off by default.
+    let token = '-';
+    try { token = res.json('trackingToken') || '-'; } catch (e) { token = '-'; }
+    console.log(`REQ userId=${userId} status=${res.status} result=${result} token=${token}`);
+  }
 }
 
 export function handleSummary(data) {

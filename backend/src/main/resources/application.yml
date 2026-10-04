@@ -34,6 +34,24 @@ spring:
     baseline-version: 1
     out-of-order: false
 
+  # SecKill order pipeline: OutboxRelay -> topic seckill.orders -> SeckillOrderListener (docs/phases/P2.md §7.1).
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    producer:
+      acks: all
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      properties: { enable.idempotence: true, max.in.flight.requests.per.connection: 5, linger.ms: 5,
+                    request.timeout.ms: 5000, delivery.timeout.ms: 10000, max.block.ms: 5000 }
+    consumer:
+      group-id: seckill-order-writer
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    listener:
+      ack-mode: record
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -80,6 +98,16 @@ app:
     admin-password: ${SEED_ADMIN_PASSWORD:Admin@123}
   upload:
     dir: ${UPLOAD_DIR:uploads}   # relative to working dir; Docker maps this to a volume
+  seckill:
+    topic: seckill.orders
+    dlt-topic: seckill.orders.DLT
+    partitions: 6
+    replicas: ${KAFKA_REPLICAS:1}
+    consumer-concurrency: 3
+    relay-interval-ms: 100
+    relay-batch-size: 500
+    event-cache-ttl: 5s
+    reconcile-grace: 30m
 
 management:
   endpoints:
@@ -98,20 +126,3 @@ springdoc:
 logging:
   level:
     my.edu.ukm.ftsm: INFO
-
----
-# Local-only quick start without MySQL: run with SPRING_PROFILES_ACTIVE=h2
-spring:
-  config:
-    activate:
-      on-profile: h2
-  datasource:
-    url: jdbc:h2:mem:ftsm;DB_CLOSE_DELAY=-1;MODE=MySQL
-    username: sa
-    password: ""
-    driver-class-name: org.h2.Driver
-  jpa:
-    hibernate:
-      ddl-auto: create-drop
-  flyway:
-    enabled: false

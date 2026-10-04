@@ -1,0 +1,29 @@
+
+[1] Admin login
+  PASS admin login -> 200 with token (got 200)
+
+[2] Non-UKM email rejected on register
+  PASS non-UKM register -> 403 (got 403)
+
+[3] Register + OTP-verify 200 students
+  PASS verified 200/200 students via OTP
+
+[4] Admin creates product + SecKill event
+  PASS created product #4 and seckill event #1
+
+[4b] Wait for scheduler to warm stock + activate (<=15s)
+  PASS event became ACTIVE
+
+[5] Concurrency: 200 users race for 50 units
+    ACCEPTED=50  SOLD_OUT=150  others=0
+  PASS exactly 50 ACCEPTED (no oversell)
+
+[6] Duplicate-purchase guard (a winner buys again -> ALREADY_BOUGHT)
+  PASS re-buy by winner -> ALREADY_BOUGHT
+
+[7] Order reconciliation: wait (<=30s) for the order pipeline to persist orders
+  PASS winner has a persisted SECKILL order
+
+=== SUMMARY ===
+8/8 checks passed
+e2e rc=0

@@ -1,0 +1,4 @@
+orders	buyers	paid	failed	pending	duplicate_buyers	sold_count	outbox_new	outbox_total
+50	50	50	0	0	0	50	0	50
+event_id	1
+redis_remaining	0

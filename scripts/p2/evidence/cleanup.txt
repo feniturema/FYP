@@ -1,0 +1,32 @@
+$ docker compose -p ftsm-p2-acc --env-file $P2_TMP/compose.env down -v
+ Container ftsm-p2-acc-backend-1 Stopping 
+ Container ftsm-p2-acc-backend-1 Stopped 
+ Container ftsm-p2-acc-backend-1 Removing 
+ Container ftsm-p2-acc-backend-1 Removed 
+ Container ftsm-p2-acc-redis-1 Stopping 
+ Container ftsm-p2-acc-mysql-1 Stopping 
+ Container ftsm-p2-acc-kafka-1 Stopping 
+ Container ftsm-p2-acc-redis-1 Stopped 
+ Container ftsm-p2-acc-redis-1 Removing 
+ Container ftsm-p2-acc-redis-1 Removed 
+ Container ftsm-p2-acc-kafka-1 Stopped 
+ Container ftsm-p2-acc-kafka-1 Removing 
+ Container ftsm-p2-acc-kafka-1 Removed 
+ Container ftsm-p2-acc-mysql-1 Stopped 
+ Container ftsm-p2-acc-mysql-1 Removing 
+ Container ftsm-p2-acc-mysql-1 Removed 
+ Volume ftsm-p2-acc_redis_data Removing 
+ Volume ftsm-p2-acc_kafka_data Removing 
+ Volume ftsm-p2-acc_mysql_data Removing 
+ Volume ftsm-p2-acc_uploads_data Removing 
+ Network ftsm-p2-acc_default Removing 
+ Volume ftsm-p2-acc_mysql_data Removed 
+ Volume ftsm-p2-acc_uploads_data Removed 
+ Volume ftsm-p2-acc_kafka_data Removed 
+ Volume ftsm-p2-acc_redis_data Removed 
+ Network ftsm-p2-acc_default Removed 
+down rc=0
+log follower running: no
+containers: 0
+volumes:    0
+networks:   0
