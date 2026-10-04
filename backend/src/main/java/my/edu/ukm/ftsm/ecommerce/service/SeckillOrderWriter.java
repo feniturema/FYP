@@ -59,4 +59,19 @@ public class SeckillOrderWriter {
     public boolean existsByTrackingToken(String trackingToken) {
         return orderRepository.existsByTrackingToken(trackingToken);
     }
+
+    /**
+     * Like {@link #existsByTrackingToken} but never throws: {@code null} means the check itself failed
+     * (e.g. the database is unreachable), so the caller cannot tell whether the order was committed.
+     * Deliberately not {@code @Transactional}: a failure to open a transaction must also land here.
+     * Used only by the SYNC benchmark mode (docs/phases/P3.md §6.1).
+     */
+    public Boolean existsByTrackingTokenSafely(String trackingToken) {
+        try {
+            return orderRepository.existsByTrackingToken(trackingToken);
+        } catch (RuntimeException e) {
+            log.warn("[SecKill] order existence check failed for token={}: {}", trackingToken, e.toString());
+            return null;
+        }
+    }
 }

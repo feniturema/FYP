@@ -18,7 +18,9 @@ import my.edu.ukm.ftsm.ecommerce.utils.RedisKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -27,6 +29,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -34,6 +37,12 @@ import java.util.UUID;
 public class SeckillService {
 
     private static final Logger log = LoggerFactory.getLogger(SeckillService.class);
+
+    /**
+     * ASYNC (default, P2): outbox insert, order written later via Kafka. SYNC: the order is written in
+     * the request thread (docs/phases/P3.md §6.1) — only for benchmark comparison, never a production default.
+     */
+    public enum Mode { ASYNC, SYNC }
 
     private final SeckillEventRepository eventRepository;
     private final ProductRepository productRepository;
@@ -44,6 +53,8 @@ public class SeckillService {
     private final SeckillEventCache eventCache;
     private final OutboxDao outboxDao;
     private final ObjectMapper objectMapper;
+    private final SeckillOrderWriter writer;
+    private final Mode mode;
     private final Counter uncertainCounter;
     private final Counter compensationFailedCounter;
 
@@ -52,7 +63,8 @@ public class SeckillService {
                           @Qualifier("seckillDeductScript") RedisScript<Long> deductScript,
                           @Qualifier("seckillRollbackScript") RedisScript<Long> rollbackScript,
                           SeckillEventCache eventCache, OutboxDao outboxDao, ObjectMapper objectMapper,
-                          MeterRegistry meterRegistry) {
+                          MeterRegistry meterRegistry, SeckillOrderWriter writer,
+                          @Value("${app.seckill.mode:async}") String mode) {
         this.eventRepository = eventRepository;
         this.productRepository = productRepository;
         this.orderRepository = orderRepository;
@@ -62,6 +74,11 @@ public class SeckillService {
         this.eventCache = eventCache;
         this.outboxDao = outboxDao;
         this.objectMapper = objectMapper;
+        this.writer = writer;
+        this.mode = Mode.valueOf(mode.trim().toUpperCase(Locale.ROOT));
+        if (this.mode == Mode.SYNC) {
+            log.warn("[SecKill] app.seckill.mode=sync: orders are written in the request thread (benchmark comparison only)");
+        }
         this.uncertainCounter = meterRegistry.counter("seckill.outbox.uncertain");
         this.compensationFailedCounter = meterRegistry.counter("seckill.compensation.failed");
     }
@@ -209,7 +226,11 @@ public class SeckillService {
                 "You have already secured one. Limit: 1 per user.");
         if (r != 1) return notActive("SecKill stock is not available yet.");
         String orderId = UUID.randomUUID().toString();
-        String payload = json(new SeckillOrderMessage(orderId, userId, eventId, w.productId(), w.price(), Instant.now()));
+        SeckillOrderMessage msg = new SeckillOrderMessage(orderId, userId, eventId, w.productId(), w.price(), Instant.now());
+        if (mode == Mode.SYNC) {
+            return buySync(msg, keys);
+        }
+        String payload = json(msg);
         try {
             outboxDao.insert(orderId, userId, eventId, payload);
             return accepted(orderId);
@@ -217,13 +238,38 @@ public class SeckillService {
             Boolean exists = outboxDao.existsByOrderIdSafely(orderId);
             if (Boolean.TRUE.equals(exists)) return accepted(orderId);
             if (exists == null) {          // cannot tell whether T1 committed: never compensate
-                uncertain(orderId, userId, eventId, e);
+                uncertain(STAGE_OUTBOX, orderId, userId, eventId, e);
                 return unavailable();
             }
-            compensate(keys, userId, e);   // logs + counts on failure
+            compensate(STAGE_OUTBOX, keys, userId, e);   // logs + counts on failure
             return unavailable();
         }
     }
+
+    /** SYNC mode (P3 §6.1): T3 in the request thread; no outbox row, no Kafka message. */
+    private SeckillBuyResponse buySync(SeckillOrderMessage msg, List<String> keys) {
+        String orderId = msg.orderId();
+        try {
+            writer.persist(msg);                                   // same transaction as the P2 listener
+            return accepted(orderId);
+        } catch (DataIntegrityViolationException e) {
+            if (writer.existsByTrackingToken(orderId)) return accepted(orderId);   // cannot normally happen; defensive
+            compensate(STAGE_SYNC, keys, msg.userId(), e);         // constraint violation for a new token: give slot back
+            return unavailable();
+        } catch (RuntimeException e) {                             // includes commit failures and the MySQL stock guard
+            Boolean exists = writer.existsByTrackingTokenSafely(orderId);
+            if (Boolean.TRUE.equals(exists)) return accepted(orderId);
+            if (exists == null) {                                  // cannot tell whether it committed: no compensation
+                uncertain(STAGE_SYNC, orderId, msg.userId(), msg.eventId(), e);
+                return unavailable();
+            }
+            compensate(STAGE_SYNC, keys, msg.userId(), e);
+            return unavailable();
+        }
+    }
+
+    private static final String STAGE_OUTBOX = "outbox insert";
+    private static final String STAGE_SYNC = "sync order write";
 
     private static SeckillBuyResponse accepted(String orderId) {
         return new SeckillBuyResponse("ACCEPTED", orderId, "Your order is being processed.");
@@ -238,17 +284,17 @@ public class SeckillService {
                 "We could not confirm your order. Please check My Orders before trying again.");
     }
 
-    private void uncertain(String orderId, Long userId, Long eventId, DataAccessException cause) {
+    private void uncertain(String stage, String orderId, Long userId, Long eventId, RuntimeException cause) {
         uncertainCounter.increment();
-        log.error("[SecKill] UNCERTAIN orderId={} userId={} eventId={}: outbox insert failed and could not be "
-                + "verified; slot NOT compensated", orderId, userId, eventId, cause);
+        log.error("[SecKill] UNCERTAIN orderId={} userId={} eventId={}: {} failed and could not be "
+                + "verified; slot NOT compensated", orderId, userId, eventId, stage, cause);
     }
 
-    private void compensate(List<String> keys, Long userId, DataAccessException cause) {
+    private void compensate(String stage, List<String> keys, Long userId, RuntimeException cause) {
         try {
             Long released = redis.execute(rollbackScript, keys, String.valueOf(userId));
-            log.warn("[SecKill] outbox insert failed (not written); compensated user {} on {} (released={})",
-                    userId, keys.get(0), released, cause);
+            log.warn("[SecKill] {} failed (not written); compensated user {} on {} (released={})",
+                    stage, userId, keys.get(0), released, cause);
         } catch (RuntimeException ex) {
             compensationFailedCounter.increment();
             log.error("[SecKill] COMPENSATION_FAILED user {} on {}: slot not returned (insert error: {})",
