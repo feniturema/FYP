@@ -5,6 +5,54 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.6.0] — 2026-10-04 — P1: Java 21, Spring Boot 3.5.16, virtual threads
+
+Authored by Claude Code per `docs/phases/P1.md`. **D1=boot-3.5.16** (maintainer decision,
+2026-10-04): stay on the 3.5 line, accepting that it is unlikely to receive further open-source
+patches (CHANGE_SPEC §0.9). No application code (`backend/src/main/java/**`) changed; no new
+migration was needed.
+
+### Changed
+- `backend/pom.xml`: `spring-boot-starter-parent` 3.3.5 → **3.5.16**; `java.version` 17 → **21**;
+  the Lombok version override (1.18.36) removed, so the BOM's **1.18.46** applies; springdoc
+  2.6.0 → **2.8.17**. Effective versions: Hibernate 6.6.53.Final, Flyway 11.7.2, Connector/J 9.7.0
+  (`scripts/db/evidence/p1/effective-versions.txt`).
+- `application.yml`: `spring.threads.virtual.enabled: ${VIRTUAL_THREADS:true}`,
+  `spring.datasource.hikari.maximum-pool-size: ${DB_POOL_SIZE:20}`.
+- `backend/Dockerfile`: build on `maven:3.9.11-eclipse-temurin-21-noble`, run on
+  `eclipse-temurin:21.0.12.1_1-jre-noble`; `ENTRYPOINT` honours `JAVA_OPTS`
+  (default `-XX:MaxRAMPercentage=75`).
+- `docker-compose.yml`: backend gets `VIRTUAL_THREADS`, `DB_POOL_SIZE`, `JAVA_OPTS`.
+- README / HANDOFF: JDK 21 requirement, Boot 3.5.16, new variables, D1 recorded.
+
+### Added
+- `scripts/p1/upgrade_path_check.sh`: baseline jar → P0 jar → P1 jar on one database versus the
+  P1 jar on an empty one, then `compare_schemas.sh`.
+- `scripts/p1/pinning_report.sh`: groups `-Djdk.tracePinnedThreads=short` reports by top frame.
+- `scripts/db/evidence/p1/`: effective versions, fresh/legacy `verify_schema` output, fingerprints,
+  empty diff, pinning report and the pinning control run.
+- Smoke results: `loadtest/results/_smoke/P1-vt-on/`, `P1-vt-off/`, `P1-vt-on-pinning/`.
+
+### Verified (`docs/phases/P1.md` §9; local MySQL mode, no Docker daemon)
+| ID | Result | Key output |
+| --- | --- | --- |
+| A1 | pass | `./mvnw -B clean verify`: 60 sources compiled with `release 21`; `Tests run: 5, Failures: 0, Errors: 0, Skipped: 0`; BUILD SUCCESS |
+| A2 | pass | pinned-artifact count 5; Lombok 1.18.46 count 2 |
+| A3 | pass | `major version: 65` |
+| A4 | pass | fresh DB: `1\|SQL\|V1__baseline.sql\|1` only (no V1_1) |
+| A5 | pass | `upgrade_path_check.sh` rc 0; legacy `1\|BASELINE\|<< Flyway Baseline >>\|1`; empty diff |
+| A6 | pass | `VIRTUAL_THREADS=true`: e2e 8/8 (20/40/0); contention run rc 0 (5/15/0, orders 5, Redis 0); request threads `tomcat-handler-N` |
+| A7 | pass | `VIRTUAL_THREADS=false`: same results; request threads `http-nio-8080-exec-N` |
+| A8 | produced | 0 pinned stacks; a control program proves the flag and parser detect pinning |
+| A9–A11 | **not executed** | no Docker daemon; both pinned image tags exist on Docker Hub (metadata only) |
+| A12 | not executed | nothing to clean: the `ftsm-p1-acc` compose project was never created |
+
+### Not executed / follow-ups
+- A9–A11 (image build, container start/API/Swagger, in-container e2e) need a machine with
+  Docker ≥ 24; the P1 PR stays draft until they pass.
+
+---
+
 ## [v0.5.0] — 2026-10-04 — P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke
 
 Authored by Claude Code per `docs/phases/P0.md`. **No application code changed**
