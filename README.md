@@ -14,9 +14,13 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.4.4 implementation spec | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md` added (docs only). |
 | v0.4.5 spec made agent-executable | Claude Code | 2026-10-03 | Repo facts verified, P0 execution package, pinned versions (docs only). |
 | v0.4.6 per-phase execution packages | Claude Code | 2026-10-03 | `docs/phases/` + `docs/agent-prompts/` for all 11 phases, coverage matrix, registries (docs only). |
+| v0.5.0 P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke | Claude Code | 2026-10-04 | `backend/mvnw`, `V1__baseline.sql`, `scripts/lib`, `scripts/db`, `loadtest/`; no application code changed. |
 
 The application code is unchanged since v0.4.2 (commit `5f5fae4`), which is the pre-upgrade
-baseline (tag `v0.4.2-baseline`, to be created by upgrade phase P0; it does not exist yet). See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
+baseline (annotated tag `v0.4.2-baseline`, introduced by upgrade phase P0; see `CHANGELOG.md`
+v0.5.0 for its push status). P0 (v0.5.0) added the
+Maven Wrapper, Flyway-managed schema and the k6 load-test tooling without changing application
+code. See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
 handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
 (Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s) and
 `docs/CHANGE_SPEC.md` for the master implementation spec, with one execution package per phase in
@@ -38,7 +42,7 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 | Layer | Tech |
 |---|---|
 | Frontend | Vite 5, React 18, TypeScript, Tailwind CSS, Zustand, React Router 6, Axios |
-| Backend | Java 17, Spring Boot 3.3.5, Spring Data JPA (Hibernate `ddl-auto: update`), Spring Security + JWT (jjwt), Spring Mail, WebClient, springdoc-openapi |
+| Backend | Java 17, Spring Boot 3.3.5, Spring Data JPA (Hibernate `ddl-auto: validate`), Flyway migrations, Spring Security + JWT (jjwt), Spring Mail, WebClient, springdoc-openapi |
 | Data | MySQL 8, Redis 7 (Lua + Streams + OTP TTL keys) |
 | AI | DeepSeek (OpenAI-compatible; default `deepseek-v4-flash`) — any OpenAI-compatible provider via `LLM_BASE_URL` |
 | Infra | Docker Compose + Nginx reverse proxy (frontend container) |
@@ -49,13 +53,14 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 
 - **JDK 17 or 21** (the build targets Java 17). ⚠️ **Do not build with JDK 25** —
   the pinned Lombok (1.18.36) is not compatible and the build fails with
-  `TypeTag :: UNKNOWN`. If `mvn -version` reports JDK 25, point Maven at JDK 21:
+  `TypeTag :: UNKNOWN`. If `cd backend && ./mvnw -v` reports JDK 25, point Maven at JDK 21:
   ```bash
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
   ```
-- **Maven 3.9+** (there is no Maven Wrapper in the repo yet).
+- No Maven install needed: use the Maven Wrapper `backend/mvnw` (Maven 3.9.11, download verified
+  by `distributionSha256Sum`).
 - **Node 20+** and npm.
-- For local dev: a running **MySQL 8** and **Redis 7** (or use Docker, below).
+- For local dev: a running **MySQL 8.0** and **Redis 7** (or use Docker, below).
 
 ---
 
@@ -66,7 +71,7 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 cd backend
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # if needed
 # Needs MySQL + Redis reachable on localhost (defaults: root/root, db auto-created).
-mvn spring-boot:run
+./mvnw spring-boot:run
 ```
 - API: http://localhost:8080
 - Swagger UI: http://localhost:8080/swagger-ui.html
@@ -76,7 +81,7 @@ mvn spring-boot:run
 
 > No MySQL handy? Run with the in-memory H2 profile (still needs Redis):
 > ```bash
-> SPRING_PROFILES_ACTIVE=h2 mvn spring-boot:run
+> cd backend && SPRING_PROFILES_ACTIVE=h2 ./mvnw spring-boot:run
 > ```
 
 ### 2. Frontend
@@ -96,10 +101,35 @@ docker compose up -d --build
 ```
 - Public site: `http://<server-ip>/`  (Nginx serves the SPA and proxies `/api`, `/uploads`, Swagger)
 - Backend is also exposed directly on `:8080`; MySQL `:3306` and Redis `:6379` are
-  published too — firewall them on a public server.
+  published too — firewall them on a public server. Host ports can be overridden with
+  `MYSQL_HOST_PORT`, `REDIS_HOST_PORT`, `BACKEND_HOST_PORT` and `FRONTEND_HOST_PORT`
+  (defaults 3306 / 6379 / 8080 / 80). Images are pinned (`mysql:8.0.46`, `redis:7.4.6-alpine`).
 - Uploaded images persist in the `uploads_data` volume.
 - For HTTPS on a real domain, terminate TLS at an outer Nginx/Caddy or add
   Certbot/Let's Encrypt in front of the `frontend` container.
+
+---
+
+## Database migrations
+
+The schema is owned by **Flyway** (`backend/src/main/resources/db/migration/`); Hibernate runs
+with `ddl-auto: validate` and refuses to start if entities and tables disagree.
+
+- `V1__baseline.sql` is the v0.4.2 schema exported from a real MySQL 8.0 by
+  `scripts/db/export_baseline_schema.sh`. **Never edit a merged migration**; every entity change
+  needs a new `V<n>__*.sql` (numbers are pre-allocated in `docs/CHANGE_SPEC.md` §0.6).
+- Empty database → Flyway runs V1. Existing database created by Hibernate before v0.5.0 →
+  Flyway only records a `BASELINE` row at version 1 (`baseline-on-migrate`) and changes no
+  tables. Check with `SELECT version, type, script, success FROM flyway_schema_history;`.
+- The `h2` profile and `@DataJpaTest` keep Flyway disabled and let Hibernate create the schema.
+- Rolling back to pre-v0.5.0 code: there is no automatic downgrade. Because V1 changes no
+  tables on an existing database, it is enough to drop the history table manually:
+  ```sql
+  DROP TABLE flyway_schema_history;
+  ```
+- Schema tooling (temporary MySQL on 127.0.0.1:3307, see `scripts/db/lib.sh`):
+  `scripts/db/schema_fingerprint.sh DB` and `scripts/db/compare_schemas.sh DB_A DB_B` produce a
+  normalised fingerprint and diff; `scripts/db/verify_schema.sql` is a human-readable check.
 
 ---
 
@@ -159,7 +189,7 @@ WebClient `Mono` so the servlet security context is respected (see CHANGELOG v0.
 
 ## Tests
 
-- **Unit / slice tests** (`mvn test`): 5 tests in 3 classes —
+- **Unit / slice tests** (`cd backend && ./mvnw -B verify`): 5 tests in 3 classes —
   `UkmEmailValidatorTest`, `PaymentStrategyFactoryTest`, `ReviewRepositoryTest` (`@DataJpaTest`).
 - **End-to-end** (`scripts/e2e_test.py`, 8 checks) against a running backend + MySQL + Redis,
   including the SecKill race (N users vs. S units → exactly S orders, no oversell):
@@ -180,6 +210,17 @@ seq 1 200 | xargs -P 50 -I{} curl -s -o /dev/null -w "%{http_code}\n" \
 
 ---
 
+## Load testing
+
+`loadtest/` holds k6 scenarios (`throughput.js`, `contention.js`) that judge each SecKill
+response by its business `result`, plus `run.sh`, which runs one scenario into its own result
+directory and reconciles orders in MySQL and stock in Redis afterwards. Install k6 with
+`scripts/tools/install_k6.sh` (k6 2.3.0, sha256-pinned). See [`loadtest/README.md`](loadtest/README.md).
+Results under `loadtest/results/_smoke/` are smoke runs that only prove the tooling works —
+they are **not** performance numbers; the formal baseline is measured by a person before P3.
+
+---
+
 ## Known limitations
 
 Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
@@ -190,7 +231,6 @@ Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
   it is guarded by a lock.
 - Regular B2C / C2C checkout decrements stock with read-modify-write (no row lock /
   conditional update), so heavy concurrent buying of one normal product can oversell.
-- Schema is managed by Hibernate `ddl-auto: update` (no migrations).
 - Uploads live on local disk (one volume), so multiple replicas would not share images.
 
 ---
@@ -200,6 +240,10 @@ Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
 backend/             Spring Boot API (controllers, services, security, Redis Lua + stream consumer)
 frontend/            Vite + React SPA (features: auth, marketplace, seckill, chatbot, admin; pages: cart, orders)
 scripts/e2e_test.py  end-to-end + SecKill concurrency verification
+scripts/lib/         shared shell helpers (wait.sh: bounded readiness waits)
+scripts/db/          temporary MySQL/Redis helpers, V1 export, schema fingerprint/compare
+scripts/tools/       pinned tool installers (k6)
+loadtest/            k6 scenarios, run/drain/verify/summarize tooling, results
 docs/                upgrade plan, master spec, per-phase packages (phases/) and prompts (agent-prompts/)
 docker-compose.yml   full stack for deployment
 .env.example         secrets template

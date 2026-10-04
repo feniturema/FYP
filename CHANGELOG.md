@@ -5,6 +5,79 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.5.0] — 2026-10-04 — P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke
+
+Authored by Claude Code per `docs/phases/P0.md`. **No application code changed**
+(`backend/src/main/java/**`, `frontend/**`, `scripts/e2e_test.py`, Dockerfiles and `.env.example`
+are untouched).
+
+### Added
+- Annotated tag `v0.4.2-baseline` → `5f5fae4e6c132d90591471046b91806766d1a8c6` (pre-upgrade baseline).
+  **Not yet on the remote**: the push from the P0 session was rejected with HTTP 403 by the
+  session's git proxy. A maintainer must run:
+  ```bash
+  git fetch origin && git tag -a v0.4.2-baseline 5f5fae4e6c132d90591471046b91806766d1a8c6 -m "Pre-upgrade baseline (v0.4.2)"
+  git push origin refs/tags/v0.4.2-baseline
+  git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'   # must print 5f5fae4e6c132d90591471046b91806766d1a8c6
+  ```
+- Maven Wrapper `backend/mvnw` / `mvnw.cmd` (maven-wrapper-plugin 3.3.4, `only-script`, Maven 3.9.11,
+  `distributionSha256Sum` pinned; sha512 cross-checked against Maven Central).
+- Flyway (Boot-managed 10.10.0, `flyway-core` + `flyway-mysql`) with
+  `db/migration/V1__baseline.sql`, exported from the v0.4.2 Hibernate schema on MySQL
+  8.0.46 by `scripts/db/export_baseline_schema.sh` (never hand-written; immutable once merged).
+- `scripts/lib/wait.sh` (`wait_http`, `wait_cmd` with coreutils `timeout`; self-test via `bash scripts/lib/wait.sh`).
+- `scripts/db/`: `lib.sh` (temporary MySQL 127.0.0.1:3307 / Redis 6380, docker or local mode,
+  `start_backend`/`stop_backend`, `temp:` targets), `export_baseline_schema.sh`,
+  `schema_fingerprint.sh`, `compare_schemas.sh`, `verify_schema.sql`, evidence in `scripts/db/evidence/p0/`.
+- `scripts/tools/install_k6.sh`: k6 2.3.0 with pinned sha256 (no skip switch).
+- `loadtest/`: `throughput.js`, `contention.js`, `lib/jwt.js`, `lib/result.js`, `setup_event.py`,
+  `drain.sh` (stream mode), `verify.sql`, `run.sh`, `summarize.py`, `README.md`; smoke results in
+  `loadtest/results/_smoke/`.
+
+### Changed
+- `application.yml`: `ddl-auto: validate`; `spring.flyway.*` (`baseline-on-migrate`, baseline version 1,
+  `out-of-order: false`); `h2` profile disables Flyway. `ReviewRepositoryTest` disables Flyway.
+- `docker-compose.yml`: `mysql:8.0.46`, `redis:7.4.6-alpine`; host ports overridable via
+  `MYSQL_HOST_PORT` / `REDIS_HOST_PORT` / `BACKEND_HOST_PORT` / `FRONTEND_HOST_PORT` (defaults unchanged).
+- `.gitignore`: `.tools/`, `loadtest/results/**/tmp/`.
+- README / HANDOFF: `cd backend && ./mvnw`; "Database migrations" and "Load testing" sections;
+  "no schema migrations" removed from known gaps.
+
+### Verified (`docs/phases/P0.md` §9; local mode — no Docker daemon in the P0 environment)
+Environment: Ubuntu 24.04 x86_64, 4 vCPU / 15 GiB, OpenJDK 21.0.11, Maven 3.9.11, Python 3.11.15,
+MySQL 8.0.46-0ubuntu0.24.04.4 (private datadir, port 3307), Redis 7.0.15 (port 6380), k6 v2.3.0.
+
+| ID | Result | Key output |
+| --- | --- | --- |
+| A1 | **not passed — needs maintainer push** | local tag peels to `5f5fae4…`; `git push origin refs/tags/v0.4.2-baseline` → HTTP 403 (session git proxy) |
+| A2 | pass | `Apache Maven 3.9.11`; `distributionSha256Sum` count 1; `mvnw` mode 100755 |
+| A3 | pass | `Tests run: 5, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS |
+| A4 | pass | `wait_http` rc=1 after 6 s; blocked `wait_cmd` rc=1 after 2 s; malformed rc=2 |
+| A5 | pass | `SELECT VERSION()` → `8.0.46-0ubuntu0.24.04.4`; local mode, `/var/lib/mysql` untouched |
+| A6 | pass | rc=0, 6 `CREATE TABLE`, no `AUTO_INCREMENT=` / `/*!`; re-run rc=4, `--force-overwrite-untracked` rc=0, byte-identical |
+| A7 | pass | fresh `1\|SQL\|V1__baseline.sql\|1`; legacy `1\|BASELINE\|<< Flyway Baseline >>\|1`; legacy admin login 200 |
+| A8 | pass | `compare_schemas.sh ftsm_p0_fresh ftsm_p0_legacy` rc=0, empty diff (71-line fingerprints) |
+| A9 | pass | H2 profile healthy on 8081, rc=0, no `Migrating schema` / Flyway lines in log |
+| A10 | pass | `scripts/e2e_test.py` on P0 jar: `8/8 checks passed` |
+| A11 | pass | `k6 v2.3.0`; tampered tarball → rc=5 |
+| A12 | pass | baseline throughput: rc=0, requestRps=10, dropped=0, UNPARSEABLE=0, orders=buyers=accepted=254 |
+| A13 | pass | baseline contention: rc=0, ACCEPTED=5, SOLD_OUT=15, ALREADY_BOUGHT=0; wrong-STOCK control run → k6 rc=99 |
+| A14 | pass | orders=5, buyers=5, Redis remaining stock 0 |
+| A15 | pass | P0 jar on the baseline-built smoke DB (baselined): contention rc=0 (5/15/0); `summarize.py` rc=0 |
+| A16 | pass | `docker compose config -q` rc=0 (Compose v5.3.1 CLI); 4 default published ports |
+| A17 | pass | changed files ⊆ P0 §4; forbidden-path diff empty |
+| A18 | pass | secret scan of `origin/main...HEAD` empty |
+| A19 | pass (local mode) | worktree removed, temp mysqld/redis stopped, `$P0_TMP` deleted, ports free; no containers were created (no Docker daemon) |
+
+Smoke numbers prove the tooling only; they are not performance results.
+
+### Not executed / external follow-ups
+- A1 remote tag: pending the maintainer push above.
+- Docker mode (`P0_MYSQL_MODE=docker`) of `scripts/db/lib.sh` was not exercised (no Docker daemon).
+- Formal baseline benchmark: by a person on a dedicated machine before P3 (not blocking).
+
+---
+
 ## [Unreleased] — 2026-10-04 — Specification quality corrections
 
 ### Fixed

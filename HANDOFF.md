@@ -11,6 +11,7 @@
 | AI chatbot activated (DeepSeek OpenAI-compatible) | Claude Code (Sonnet 4.6) | 2026-06-01 | `CHANGELOG.md` v0.4.0–v0.4.2 |
 | Docs aligned with code; compose `LLM_*` fix; upgrade plan | Claude Code | 2026-10-03 | `CHANGELOG.md` v0.4.3; `docs/UPGRADE_PLAN.md` |
 | Upgrade implementation spec (v0.4.4), agent-executable revision (v0.4.5), per-phase execution packages (v0.4.6) | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md`, `docs/phases/`, `docs/agent-prompts/` |
+| Upgrade P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke tooling | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.5.0; `docs/phases/P0.md` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -41,6 +42,10 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
 | Automated tests | ⚠️ 5 JUnit tests (3 classes) + `scripts/e2e_test.py` (8 checks); no SecKill service/integration test yet |
+| Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ⚠️ P0 (v0.5.0): created, but the push from the P0 session was rejected (HTTP 403 from the session git proxy); a maintainer must push it — commands in CHANGELOG v0.5.0 |
+| Maven Wrapper `backend/mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0) — use `cd backend && ./mvnw` until P4a moves it to the repo root |
+| Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
+| Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0) — smoke runs only; formal baseline measured by a person before P3 |
 
 ### Verified by `scripts/e2e_test.py` (8/8 passing)
 Admin login · non-UKM rejected (403) · 60 OTP registrations · product+event creation ·
@@ -62,7 +67,7 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consu
   ```bash
   cd backend
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-  DB_PASSWORD="" mvn spring-boot:run          # MySQL on localhost, db auto-created
+  DB_PASSWORD="" ./mvnw spring-boot:run       # MySQL on localhost, db auto-created; Flyway migrates
   # API http://localhost:8080 · Swagger http://localhost:8080/swagger-ui.html
   # Seeded admin: admin@ukm.edu.my / Admin@123
   # OTP codes are printed to the console (mail disabled by default)
@@ -71,6 +76,10 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consu
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
+- **Tests:** `cd backend && ./mvnw -B verify` (5 tests; H2, Flyway off).
+- **Shared helpers for acceptance runs:** `scripts/lib/wait.sh` (`wait_http`, `wait_cmd` — every
+  readiness wait must go through these), `scripts/db/lib.sh` (temporary MySQL 3307 / Redis 6380,
+  `start_backend`), `loadtest/run.sh` (k6 smoke/benchmark runs).
 - **E2E test (backend must be running, with its log captured):**
   ```bash
   # if you started via jar: java -jar target/*.jar > /tmp/ftsm-real.log 2>&1 &
@@ -255,9 +264,8 @@ Write at least a happy-path test where noted.
 8. **Redis Stream durability.** Lua deduction and `XADD` are separate calls; Redis runs with
    default RDB snapshots only. A crash between them, or a Redis restart, can lose accepted
    orders (results in under-selling, never oversell).
-9. **No schema migrations.** Hibernate `ddl-auto: update`; no Flyway/Liquibase.
-10. **Uploads on local disk** (`UPLOAD_DIR` / `uploads_data` volume) — not shared across replicas.
-11. **`prod` profile** is set by Docker Compose but has no overrides in `application.yml`.
+9. **Uploads on local disk** (`UPLOAD_DIR` / `uploads_data` volume) — not shared across replicas.
+10. **`prod` profile** is set by Docker Compose but has no overrides in `application.yml`.
 
 ---
 
@@ -272,7 +280,7 @@ Write at least a happy-path test where noted.
 - ⬜ Next: v0.5+ upgrade. Master spec: `docs/CHANGE_SPEC.md` (dependencies, registries, coverage matrix).
   Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
-  Prerequisite for P0: the docs branch (v0.4.3–v0.4.6) is merged into `main`. Human decisions pending:
+  P0 (v0.5.0) is implemented; P1 starts only after the P0 PR is merged. Human decisions pending:
   D1 (stay on Boot 3.5.16, gates P1), D2 (embedding provider, gates P5b), D3 (implement P7).
 
 ---
