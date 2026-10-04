@@ -12,14 +12,10 @@ Authored by Claude Code per `docs/phases/P0.md`. **No application code changed**
 are untouched).
 
 ### Added
-- Annotated tag `v0.4.2-baseline` → `5f5fae4e6c132d90591471046b91806766d1a8c6` (pre-upgrade baseline).
-  **Not yet on the remote**: the push from the P0 session was rejected with HTTP 403 by the
-  session's git proxy. A maintainer must run:
-  ```bash
-  git fetch origin && git tag -a v0.4.2-baseline 5f5fae4e6c132d90591471046b91806766d1a8c6 -m "Pre-upgrade baseline (v0.4.2)"
-  git push origin refs/tags/v0.4.2-baseline
-  git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'   # must print 5f5fae4e6c132d90591471046b91806766d1a8c6
-  ```
+- Annotated tag `v0.4.2-baseline` (tag object `382dc4024e0b`) → `5f5fae4e6c132d90591471046b91806766d1a8c6`
+  (pre-upgrade baseline), on `origin`. The push from the P0 session itself was rejected with HTTP 403
+  by the session's git proxy, so the maintainer pushed the tag from a local clone; the P0 session then
+  verified it with `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'`.
 - Maven Wrapper `backend/mvnw` / `mvnw.cmd` (maven-wrapper-plugin 3.3.4, `only-script`, Maven 3.9.11,
   `distributionSha256Sum` pinned; sha512 cross-checked against Maven Central).
 - Flyway (Boot-managed 10.10.0, `flyway-core` + `flyway-mysql`) with
@@ -49,7 +45,7 @@ MySQL 8.0.46-0ubuntu0.24.04.4 (private datadir, port 3307), Redis 7.0.15 (port 6
 
 | ID | Result | Key output |
 | --- | --- | --- |
-| A1 | **not passed — needs maintainer push** | local tag peels to `5f5fae4…`; `git push origin refs/tags/v0.4.2-baseline` → HTTP 403 (session git proxy) |
+| A1 | pass (after maintainer push) | `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4e6c132d90591471046b91806766d1a8c6`; tag object `382dc40…` is annotated (`git cat-file -t` = `tag`). The P0 session's own push got HTTP 403 from its git proxy |
 | A2 | pass | `Apache Maven 3.9.11`; `distributionSha256Sum` count 1; `mvnw` mode 100755 |
 | A3 | pass | `Tests run: 5, Failures: 0, Errors: 0, Skipped: 0`, BUILD SUCCESS |
 | A4 | pass | `wait_http` rc=1 after 6 s; blocked `wait_cmd` rc=1 after 2 s; malformed rc=2 |
@@ -79,12 +75,14 @@ from the final scripts (run directories record `gitSha` of the commit under test
   `--secure-file-priv=$P0_TMP/mysql-files` because the packaged default directory does not exist.
 - k6 scripts carry extra always-true (`count>=0`) thresholds so `handleSummary` can report every
   per-result count; the specified thresholds are unchanged.
-- `git diff --check` reports CRLF in the generated `backend/mvnw.cmd` (required for a Windows batch
-  file) and a trailing tab in fingerprint TSV rows (empty `create_options` column).
+- `git diff --check origin/main...HEAD` does **not** pass cleanly; it still reports (1) CRLF line endings
+  in the generated Maven Wrapper Windows script `backend/mvnw.cmd` (189 lines; required for a Windows
+  batch file, not hand-edited) and (2) trailing tabs in `scripts/db/evidence/p0/*.fingerprint.tsv`
+  (6 lines each), produced by the empty `create_options` field of the §6.5 query. No other whitespace
+  errors are reported.
 - `k6.log` in run directories is not committed (existing `*.log` ignore rule).
 
 ### Not executed / external follow-ups
-- A1 remote tag: pending the maintainer push above.
 - Docker mode (`P0_MYSQL_MODE=docker`) of `scripts/db/lib.sh` was not exercised (no Docker daemon).
 - Formal baseline benchmark: by a person on a dedicated machine before P3 (not blocking).
 

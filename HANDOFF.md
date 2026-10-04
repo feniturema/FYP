@@ -42,7 +42,7 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
 | Automated tests | ⚠️ 5 JUnit tests (3 classes) + `scripts/e2e_test.py` (8 checks); no SecKill service/integration test yet |
-| Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ⚠️ P0 (v0.5.0): created, but the push from the P0 session was rejected (HTTP 403 from the session git proxy); a maintainer must push it — commands in CHANGELOG v0.5.0 |
+| Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
 | Maven Wrapper `backend/mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0) — use `cd backend && ./mvnw` until P4a moves it to the repo root |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
 | Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0) — smoke runs only; formal baseline measured by a person before P3 |

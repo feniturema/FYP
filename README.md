@@ -17,8 +17,7 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.5.0 P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke | Claude Code | 2026-10-04 | `backend/mvnw`, `V1__baseline.sql`, `scripts/lib`, `scripts/db`, `loadtest/`; no application code changed. |
 
 The application code is unchanged since v0.4.2 (commit `5f5fae4`), which is the pre-upgrade
-baseline (annotated tag `v0.4.2-baseline`, introduced by upgrade phase P0; see `CHANGELOG.md`
-v0.5.0 for its push status). P0 (v0.5.0) added the
+baseline (annotated tag `v0.4.2-baseline`, created in upgrade phase P0). P0 (v0.5.0) added the
 Maven Wrapper, Flyway-managed schema and the k6 load-test tooling without changing application
 code. See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
 handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
