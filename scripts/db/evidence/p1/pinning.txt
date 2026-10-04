@@ -1,0 +1,8 @@
+# pinning report for $P1_TMP/vt-on-pinning.log
+# reports (distinct pinned stacks): 0
+# by reason: -
+
+## by top frame (count\tframe)
+
+## monitor-holding frames (count\tframe)
+(none)

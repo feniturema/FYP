@@ -1,0 +1,3 @@
+products rc=0
+api-docs rc=0
+swagger http_code=200

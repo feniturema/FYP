@@ -1,0 +1,6 @@
+   1 scheduling-N
+# all loggers, thread column as printed (Logback left-truncates to 15 chars: tomcat-handler-N = Tomcat virtual threads):
+  47 main
+  29 mcat-handler-N
+   5 omcat-handler-N
+  11 scheduling-N

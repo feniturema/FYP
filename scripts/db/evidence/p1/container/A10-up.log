@@ -1,0 +1,404 @@
+ Image redis:7.4.6-alpine Pulling 
+ Image mysql:8.0.46 Pulling 
+ 78e0666ceea1 Pulling fs layer 0B
+ 123324b8202b Pulling fs layer 0B
+ 42ba34ea3b62 Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 840189eb6923 Pulling fs layer 0B
+ a2269ba4a5b9 Pulling fs layer 0B
+ c2fe130f4aab Pulling fs layer 0B
+ f198446ddcca Pulling fs layer 0B
+ 4f4fb700ef54 Already exists 0B
+ 4fcb28d1dfcf Pulling fs layer 0B
+ 7ce425b17caf Pulling fs layer 0B
+ e9b2852d2a9d Pulling fs layer 0B
+ fa30ab141b5a Pulling fs layer 0B
+ 42505e6e6b91 Pulling fs layer 0B
+ 605b7f42ac6e Pulling fs layer 0B
+ ad770837e789 Pulling fs layer 0B
+ 11c0b299cb47 Pulling fs layer 0B
+ 1959e4a06a1c Pulling fs layer 0B
+ 70a53223cb4c Pulling fs layer 0B
+ 7b9f24d93d52 Pulling fs layer 0B
+ 42ba34ea3b62 Download complete 0B
+ 78e0666ceea1 Download complete 0B
+ 123324b8202b Downloading 1.049MB
+ 123324b8202b Downloading 4.194MB
+ 840189eb6923 Download complete 0B
+ 123324b8202b Downloading 7.34MB
+ 123324b8202b Downloading 10.49MB
+ 123324b8202b Download complete 0B
+ c2fe130f4aab Downloading 1.049MB
+ f198446ddcca Download complete 0B
+ c2fe130f4aab Downloading 2.097MB
+ a2269ba4a5b9 Download complete 0B
+ c2fe130f4aab Downloading 3.146MB
+ c2fe130f4aab Download complete 0B
+ c2fe130f4aab Extracting 1B
+ e9b2852d2a9d Download complete 0B
+ c2fe130f4aab Extracting 1B
+ 7ce425b17caf Download complete 0B
+ c2fe130f4aab Extracting 1B
+ c2fe130f4aab Extracting 1B
+ 11c0b299cb47 Downloading 2.097MB
+ c2fe130f4aab Extracting 1B
+ 4fcb28d1dfcf Download complete 0B
+ 11c0b299cb47 Downloading 5.243MB
+ c2fe130f4aab Extracting 1B
+ 11c0b299cb47 Download complete 0B
+ 70a53223cb4c Download complete 0B
+ c2fe130f4aab Extracting 1B
+ c2fe130f4aab Extracting 1B
+ c2fe130f4aab Extracting 1B
+ 605b7f42ac6e Downloading 1.049MB
+ c2fe130f4aab Extracting 2B
+ 605b7f42ac6e Downloading 2.097MB
+ 1959e4a06a1c Downloading 317B
+ 605b7f42ac6e Downloading 3.146MB
+ 1959e4a06a1c Downloading 317B
+ c2fe130f4aab Extracting 2B
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 3.146MB
+ 605b7f42ac6e Downloading 7.34MB
+ 1959e4a06a1c Download complete 0B
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 5.243MB
+ 605b7f42ac6e Downloading 10.49MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 6.291MB
+ 605b7f42ac6e Downloading 11.53MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 7.34MB
+ 605b7f42ac6e Downloading 14.68MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 9.437MB
+ 605b7f42ac6e Downloading 16.78MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 10.49MB
+ 605b7f42ac6e Downloading 19.92MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 12.58MB
+ 605b7f42ac6e Downloading 22.02MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 13.63MB
+ 605b7f42ac6e Downloading 24.12MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 15.73MB
+ 605b7f42ac6e Downloading 26.21MB
+ c2fe130f4aab Extracting 2B
+ fa30ab141b5a Downloading 16.78MB
+ 605b7f42ac6e Downloading 28.31MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 17.83MB
+ 605b7f42ac6e Downloading 29.36MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 19.92MB
+ 605b7f42ac6e Downloading 32.51MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 20.97MB
+ 605b7f42ac6e Downloading 33.55MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 23.07MB
+ 605b7f42ac6e Downloading 35.65MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 24.12MB
+ 605b7f42ac6e Downloading 37.75MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 26.21MB
+ 605b7f42ac6e Downloading 39.85MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 28.31MB
+ 605b7f42ac6e Downloading 40.89MB
+ c2fe130f4aab Extracting 3B
+ ad770837e789 Downloading 1.049MB
+ fa30ab141b5a Downloading 30.41MB
+ 605b7f42ac6e Downloading 42.99MB
+ c2fe130f4aab Extracting 3B
+ fa30ab141b5a Downloading 31.46MB
+ 605b7f42ac6e Downloading 45.09MB
+ ad770837e789 Downloading 1.049MB
+ c2fe130f4aab Extracting 3B
+ 605b7f42ac6e Downloading 46.14MB
+ ad770837e789 Downloading 1.049MB
+ fa30ab141b5a Downloading 33.55MB
+ c2fe130f4aab Extracting 4B
+ ad770837e789 Downloading 1.049MB
+ fa30ab141b5a Downloading 35.65MB
+ 605b7f42ac6e Downloading 48.79MB
+ c2fe130f4aab Extracting 4B
+ 605b7f42ac6e Download complete 0B
+ ad770837e789 Downloading 2.097MB
+ fa30ab141b5a Downloading 37.75MB
+ c2fe130f4aab Extracting 4B
+ ad770837e789 Downloading 2.097MB
+ fa30ab141b5a Downloading 39.85MB
+ c2fe130f4aab Extracting 4B
+ ad770837e789 Downloading 2.097MB
+ fa30ab141b5a Downloading 42.99MB
+ 42505e6e6b91 Downloading 5.33kB
+ c2fe130f4aab Extracting 4B
+ c2fe130f4aab Extracting 4B
+ fa30ab141b5a Downloading 45.09MB
+ 42505e6e6b91 Download complete 0B
+ ad770837e789 Downloading 3.146MB
+ ad770837e789 Downloading 3.146MB
+ fa30ab141b5a Downloading 48.23MB
+ c2fe130f4aab Extracting 4B
+ ad770837e789 Downloading 4.194MB
+ fa30ab141b5a Downloading 51.38MB
+ c2fe130f4aab Extracting 4B
+ fa30ab141b5a Downloading 53.48MB
+ ad770837e789 Downloading 4.194MB
+ c2fe130f4aab Extracting 4B
+ fa30ab141b5a Downloading 57.67MB
+ 7b9f24d93d52 Download complete 0B
+ ad770837e789 Downloading 5.243MB
+ c2fe130f4aab Extracting 4B
+ fa30ab141b5a Downloading 60.82MB
+ ad770837e789 Downloading 5.243MB
+ c2fe130f4aab Extracting 5B
+ ad770837e789 Downloading 5.243MB
+ fa30ab141b5a Downloading 63.96MB
+ c2fe130f4aab Extracting 5B
+ fa30ab141b5a Downloading 67.11MB
+ ad770837e789 Downloading 6.291MB
+ c2fe130f4aab Extracting 5B
+ ad770837e789 Downloading 6.291MB
+ fa30ab141b5a Downloading 70.25MB
+ c2fe130f4aab Extracting 5B
+ fa30ab141b5a Downloading 73.4MB
+ ad770837e789 Downloading 7.34MB
+ f198446ddcca Pull complete 0B
+ a2269ba4a5b9 Pull complete 0B
+ c2fe130f4aab Pull complete 0B
+ ad770837e789 Downloading 7.34MB
+ fa30ab141b5a Downloading 76.55MB
+ 78e0666ceea1 Pull complete 0B
+ 123324b8202b Extracting 1B
+ fa30ab141b5a Downloading 79.69MB
+ ad770837e789 Downloading 8.389MB
+ 4f4fb700ef54 Pull complete 0B
+ 42ba34ea3b62 Pull complete 0B
+ 840189eb6923 Pull complete 0B
+ 123324b8202b Pull complete 0B
+ ad770837e789 Downloading 8.389MB
+ fa30ab141b5a Downloading 82.84MB
+ ad770837e789 Downloading 9.437MB
+ fa30ab141b5a Downloading 85.98MB
+ fa30ab141b5a Downloading 89.13MB
+ ad770837e789 Downloading 9.437MB
+ 1d5935e84587 Download complete 0B
+ fa30ab141b5a Downloading 92.27MB
+ ad770837e789 Downloading 10.49MB
+ fa30ab141b5a Downloading 95.42MB
+ ad770837e789 Downloading 10.49MB
+ ad770837e789 Downloading 11.53MB
+ fa30ab141b5a Downloading 98.57MB
+ ad770837e789 Downloading 11.53MB
+ fa30ab141b5a Downloading 101.7MB
+ fa30ab141b5a Downloading 104.9MB
+ ad770837e789 Downloading 12.58MB
+ fa30ab141b5a Downloading 107MB
+ ad770837e789 Downloading 12.58MB
+ cd950e72adc8 Download complete 0B
+ Image redis:7.4.6-alpine Pulled 
+ ad770837e789 Downloading 13.63MB
+ fa30ab141b5a Downloading 110.1MB
+ fa30ab141b5a Downloading 113.2MB
+ ad770837e789 Downloading 14.68MB
+ ad770837e789 Downloading 14.68MB
+ fa30ab141b5a Downloading 116.4MB
+ ad770837e789 Downloading 15.73MB
+ fa30ab141b5a Downloading 119.5MB
+ ad770837e789 Downloading 15.73MB
+ fa30ab141b5a Downloading 120.6MB
+ ad770837e789 Downloading 15.73MB
+ fa30ab141b5a Downloading 122.7MB
+ 578f543767f0 Downloading 1.049MB
+ fa30ab141b5a Downloading 125.8MB
+ 578f543767f0 Downloading 2.097MB
+ ad770837e789 Downloading 16.78MB
+ 578f543767f0 Downloading 3.146MB
+ ad770837e789 Downloading 16.78MB
+ fa30ab141b5a Downloading 127.9MB
+ fa30ab141b5a Downloading 127.9MB
+ 578f543767f0 Downloading 3.146MB
+ ad770837e789 Downloading 17.83MB
+ fa30ab141b5a Downloading 127.9MB
+ 578f543767f0 Downloading 4.194MB
+ ad770837e789 Downloading 17.83MB
+ fa30ab141b5a Download complete 0B
+ 578f543767f0 Downloading 8.389MB
+ ad770837e789 Downloading 18.87MB
+ ad770837e789 Downloading 19.92MB
+ 578f543767f0 Downloading 9.437MB
+ 578f543767f0 Downloading 11.53MB
+ ad770837e789 Downloading 22.02MB
+ ad770837e789 Downloading 23.07MB
+ 7a0e30178db8 Download complete 0B
+ 578f543767f0 Downloading 13.63MB
+ 578f543767f0 Download complete 0B
+ ad770837e789 Downloading 25.17MB
+ ad770837e789 Downloading 27.26MB
+ ad770837e789 Downloading 29.36MB
+ ad770837e789 Downloading 31.46MB
+ ad770837e789 Downloading 35.65MB
+ ad770837e789 Downloading 39.85MB
+ ad770837e789 Downloading 42.99MB
+ ad770837e789 Downloading 45.9MB
+ ad770837e789 Download complete 0B
+ ad770837e789 Extracting 1B
+ ad770837e789 Extracting 1B
+ ad770837e789 Extracting 1B
+ ad770837e789 Extracting 1B
+ ad770837e789 Extracting 1B
+ ad770837e789 Extracting 1B
+ ad770837e789 Pull complete 0B
+ e9b2852d2a9d Extracting 1B
+ 7ce425b17caf Pull complete 0B
+ 11c0b299cb47 Pull complete 0B
+ 70a53223cb4c Pull complete 0B
+ 7b9f24d93d52 Pull complete 0B
+ e9b2852d2a9d Pull complete 0B
+ 605b7f42ac6e Extracting 1B
+ 605b7f42ac6e Extracting 1B
+ 605b7f42ac6e Extracting 1B
+ 605b7f42ac6e Extracting 1B
+ 1959e4a06a1c Pull complete 0B
+ 605b7f42ac6e Pull complete 0B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 1B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 2B
+ fa30ab141b5a Extracting 3B
+ fa30ab141b5a Extracting 3B
+ fa30ab141b5a Extracting 3B
+ fa30ab141b5a Extracting 3B
+ fa30ab141b5a Extracting 3B
+ fa30ab141b5a Extracting 3B
+ fa30ab141b5a Extracting 3B
+ 4fcb28d1dfcf Pull complete 0B
+ 42505e6e6b91 Pull complete 0B
+ fa30ab141b5a Pull complete 0B
+ Image mysql:8.0.46 Pulled 
+ Image ftsm-p1-acc-backend Building 
+#1 [internal] load local bake definitions
+#1 reading from stdin 532B done
+#1 DONE 0.0s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 444B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/eclipse-temurin:21.0.12.1_1-jre-noble
+#3 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-21-noble
+#4 ...
+
+#5 [auth] library/maven:pull token for registry-1.docker.io
+#5 DONE 0.0s
+
+#4 [internal] load metadata for docker.io/library/maven:3.9.11-eclipse-temurin-21-noble
+#4 DONE 1.6s
+
+#6 [internal] load .dockerignore
+#6 transferring context: 2B done
+#6 DONE 0.0s
+
+#7 [build 1/6] FROM docker.io/library/maven:3.9.11-eclipse-temurin-21-noble@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237
+#7 resolve docker.io/library/maven:3.9.11-eclipse-temurin-21-noble@sha256:6fdc855a6ed81d288ca7ca37ac6ff5e9308b612485c0801d70b25a858c83d237 done
+#7 DONE 0.0s
+
+#8 [stage-1 1/3] FROM docker.io/library/eclipse-temurin:21.0.12.1_1-jre-noble@sha256:22138efd69393501fccd8176ae16b01791ed71ff801b28f0359415389b17c766
+#8 resolve docker.io/library/eclipse-temurin:21.0.12.1_1-jre-noble@sha256:22138efd69393501fccd8176ae16b01791ed71ff801b28f0359415389b17c766 0.0s done
+#8 DONE 0.0s
+
+#9 [internal] load build context
+#9 transferring context: 7.54kB done
+#9 DONE 0.0s
+
+#10 [stage-1 2/3] WORKDIR /app
+#10 CACHED
+
+#11 [build 2/6] WORKDIR /app
+#11 CACHED
+
+#12 [build 4/6] RUN mvn -B -q -e dependency:go-offline
+#12 CACHED
+
+#13 [build 6/6] RUN mvn -B -q -DskipTests package
+#13 CACHED
+
+#14 [build 5/6] COPY src ./src
+#14 CACHED
+
+#15 [build 3/6] COPY pom.xml .
+#15 CACHED
+
+#16 [stage-1 3/3] COPY --from=build /app/target/ecommerce-0.0.1-SNAPSHOT.jar app.jar
+#16 CACHED
+
+#17 exporting to image
+#17 exporting layers done
+#17 exporting manifest sha256:ba86110390ac190adef5764f65e36fff3f66e0eb8655518a522de21628a6331a done
+#17 exporting config sha256:bd2adf728bae6943fd6b21196739a6c5329e7c1b33c4594829f952d60dded5cc done
+#17 exporting attestation manifest sha256:da995a43d84edf55f5eefdb0b377b86ade7c23428083193784fc785b585cd049 done
+#17 exporting manifest list sha256:1001628b95bd6756146aa29329ce7942395ba5092cf1eb730b8e05d3294ca5e4 done
+#17 naming to docker.io/library/ftsm-p1-acc-backend:latest done
+#17 unpacking to docker.io/library/ftsm-p1-acc-backend:latest done
+#17 DONE 0.0s
+
+#18 resolving provenance for metadata file
+#18 DONE 0.0s
+ Image ftsm-p1-acc-backend Built 
+ Volume ftsm-p1-acc_redis_data Creating 
+ Volume ftsm-p1-acc_uploads_data Creating 
+ Volume ftsm-p1-acc_mysql_data Creating 
+ Network ftsm-p1-acc_default Creating 
+ Volume ftsm-p1-acc_mysql_data Creating 
+ Volume ftsm-p1-acc_uploads_data Creating 
+ Volume ftsm-p1-acc_redis_data Creating 
+ Network ftsm-p1-acc_default Creating 
+ Volume ftsm-p1-acc_mysql_data Created 
+ Volume ftsm-p1-acc_mysql_data Created 
+ Volume ftsm-p1-acc_uploads_data Created 
+ Volume ftsm-p1-acc_uploads_data Created 
+ Volume ftsm-p1-acc_redis_data Created 
+ Volume ftsm-p1-acc_redis_data Created 
+ Network ftsm-p1-acc_default Created 
+ Network ftsm-p1-acc_default Created 
+ Container ftsm-p1-acc-redis-1 Creating 
+ Container ftsm-p1-acc-mysql-1 Creating 
+ Container ftsm-p1-acc-mysql-1 Created 
+ Container ftsm-p1-acc-redis-1 Created 
+ Container ftsm-p1-acc-backend-1 Creating 
+ Container ftsm-p1-acc-backend-1 Created 
+ Container ftsm-p1-acc-mysql-1 Starting 
+ Container ftsm-p1-acc-redis-1 Starting 
+ Container ftsm-p1-acc-mysql-1 Started 
+ Container ftsm-p1-acc-redis-1 Started 
+ Container ftsm-p1-acc-mysql-1 Waiting 
+ Container ftsm-p1-acc-redis-1 Waiting 
+ Container ftsm-p1-acc-mysql-1 Healthy 
+ Container ftsm-p1-acc-redis-1 Healthy 
+ Container ftsm-p1-acc-backend-1 Starting 
+ Container ftsm-p1-acc-backend-1 Started 
+up rc=0

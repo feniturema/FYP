@@ -1,0 +1,18 @@
+## control A: java -Djdk.tracePinnedThreads=short Pin.java
+VirtualThread[#22]/runnable@ForkJoinPool-1-worker-1 reason:MONITOR
+    Pin.lambda$main$0(Pin.java:6) <== monitors:1
+## control B: JAVA_TOOL_OPTIONS="$JAVA_TOOL_OPTIONS -Djdk.tracePinnedThreads=short" java Pin.java (same delivery as the backend)
+VirtualThread[#22]/runnable@ForkJoinPool-1-worker-1 reason:MONITOR
+    Pin.lambda$main$0(Pin.java:6) <== monitors:1
+## pinning_report.sh on control B
+# pinning report for $P1_TMP/pincontrol/pinB.log
+# reports (distinct pinned stacks): 1
+# by reason: MONITOR=1
+
+## by top frame (count\tframe)
+1	Pin.lambda$main$0(Pin.java:6) <== monitors:1
+
+## monitor-holding frames (count\tframe)
+1	Pin.lambda$main$0(Pin.java:6) <== monitors:1
+## backend JVM saw the flag: 1 'Picked up JAVA_TOOL_OPTIONS' line(s) with the flag
+## backend log pinning headers / monitor frames: 0

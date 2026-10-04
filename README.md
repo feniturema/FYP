@@ -15,6 +15,7 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.4.5 spec made agent-executable | Claude Code | 2026-10-03 | Repo facts verified, P0 execution package, pinned versions (docs only). |
 | v0.4.6 per-phase execution packages | Claude Code | 2026-10-03 | `docs/phases/` + `docs/agent-prompts/` for all 11 phases, coverage matrix, registries (docs only). |
 | v0.5.0 P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke | Claude Code | 2026-10-04 | `backend/mvnw`, `V1__baseline.sql`, `scripts/lib`, `scripts/db`, `loadtest/`; no application code changed. |
+| v0.6.0 P1: Java 21, Spring Boot 3.5.16, virtual threads | Claude Code | 2026-10-04 | Build/runtime upgrade (D1=boot-3.5.16); `scripts/p1/`; no application code changed. |
 
 The application code is unchanged since v0.4.2 (commit `5f5fae4`), which is the pre-upgrade
 baseline (annotated tag `v0.4.2-baseline`, created in upgrade phase P0). P0 (v0.5.0) added the
@@ -41,7 +42,7 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 | Layer | Tech |
 |---|---|
 | Frontend | Vite 5, React 18, TypeScript, Tailwind CSS, Zustand, React Router 6, Axios |
-| Backend | Java 17, Spring Boot 3.3.5, Spring Data JPA (Hibernate `ddl-auto: validate`), Flyway migrations, Spring Security + JWT (jjwt), Spring Mail, WebClient, springdoc-openapi |
+| Backend | Java 21 (virtual threads), Spring Boot 3.5.16, Spring Data JPA (Hibernate `ddl-auto: validate`), Flyway migrations, Spring Security + JWT (jjwt), Spring Mail, WebClient, springdoc-openapi |
 | Data | MySQL 8, Redis 7 (Lua + Streams + OTP TTL keys) |
 | AI | DeepSeek (OpenAI-compatible; default `deepseek-v4-flash`) — any OpenAI-compatible provider via `LLM_BASE_URL` |
 | Infra | Docker Compose + Nginx reverse proxy (frontend container) |
@@ -50,9 +51,9 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 
 ## Prerequisites
 
-- **JDK 17 or 21** (the build targets Java 17). ⚠️ **Do not build with JDK 25** —
-  the pinned Lombok (1.18.36) is not compatible and the build fails with
-  `TypeTag :: UNKNOWN`. If `cd backend && ./mvnw -v` reports JDK 25, point Maven at JDK 21:
+- **JDK 21** (the build targets `release 21`; JDK 17 can no longer compile it). Other JDKs
+  (e.g. 25) have not been verified with the Boot-managed Lombok 1.18.46 — use 21. If
+  `cd backend && ./mvnw -v` reports another JDK, point Maven at JDK 21:
   ```bash
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
   ```
@@ -197,6 +198,9 @@ WebClient `Mono` so the servlet security context is respected (see CHANGELOG v0.
   ```
   The script reads OTP codes from the backend log and reuses fixed emails
   (`student0-N@siswa.ukm.edu.my`); clear them between runs on a persistent DB.
+  Redis keeps `seckill:bought:<eventId>` across database resets: when you pair a fresh database
+  with a Redis that already ran the e2e, flush Redis first, or earlier winners (same user and event
+  ids) come back as `ALREADY_BOUGHT` and show up as `others` in the race summary.
 
 Quick manual check with a JWT in `$TOKEN` (a single user is capped at 1 purchase; use
 distinct user tokens to test the stock cap):
@@ -253,7 +257,11 @@ All secrets are environment-driven (see `.env.example` and `backend/src/main/res
 `DB_URL`/`DB_USERNAME`/`DB_PASSWORD`, `REDIS_HOST`/`REDIS_PORT`/`REDIS_PASSWORD`,
 `JWT_SECRET`, `JWT_EXPIRY_MS`, `CORS_ALLOWED_ORIGINS`,
 `MAIL_ENABLED`/`SMTP_*`/`MAIL_FROM`, `LLM_API_KEY`/`LLM_BASE_URL`/`LLM_MODEL`,
-`SEED_ENABLED`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, `UPLOAD_DIR`, `SERVER_PORT`.
+`SEED_ENABLED`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, `UPLOAD_DIR`, `SERVER_PORT`,
+`VIRTUAL_THREADS` (default `true`: Tomcat requests, `@Scheduled` and `@Async` run on Java 21
+virtual threads; `false` restores platform threads), `DB_POOL_SIZE` (Hikari maximum pool size,
+default `20`). In the container, `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75`) is passed to
+`java`; the runtime image is pinned to `eclipse-temurin:21.0.12.1_1-jre-noble`.
 
 Profiles: default/`dev` (MySQL), `h2` (in-memory DB). Docker Compose sets
 `SPRING_PROFILES_ACTIVE=prod`, which currently has no profile-specific overrides and

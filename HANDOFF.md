@@ -12,6 +12,7 @@
 | Docs aligned with code; compose `LLM_*` fix; upgrade plan | Claude Code | 2026-10-03 | `CHANGELOG.md` v0.4.3; `docs/UPGRADE_PLAN.md` |
 | Upgrade implementation spec (v0.4.4), agent-executable revision (v0.4.5), per-phase execution packages (v0.4.6) | Claude Code | 2026-10-03 | `docs/CHANGE_SPEC.md`, `docs/phases/`, `docs/agent-prompts/` |
 | Upgrade P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke tooling | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.5.0; `docs/phases/P0.md` |
+| Upgrade P1: Java 21, Spring Boot 3.5.16 (D1), virtual threads | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.6.0; `docs/phases/P1.md` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -27,7 +28,7 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 
 | Area | State |
 |---|---|
-| Backend scaffold (Spring Boot 3.3 / Java 17) | ✅ Done, compiles, boots |
+| Backend scaffold (Spring Boot 3.5.16 / Java 21 since P1; was 3.3.5 / 17) | ✅ Done, compiles, boots |
 | Frontend scaffold (Vite + React 18 + TS + Tailwind) | ✅ Done, builds |
 | Auth: UKM-domain + OTP + JWT + roles | ✅ Done & verified |
 | SecKill: Lua atomic deduct + Redis Stream consumer | ✅ Done & verified (no oversell) |
@@ -46,6 +47,9 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Maven Wrapper `backend/mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0) — use `cd backend && ./mvnw` until P4a moves it to the repo root |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
 | Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0) — smoke runs only; formal baseline measured by a person before P3 |
+| Java 21 + Boot 3.5.16 (Hibernate 6.6.53, Flyway 11.7.2, Lombok 1.18.46, Connector/J 9.7.0, springdoc 2.8.17) | ✅ P1 (v0.6.0) — D1=boot-3.5.16; no V1_1 migration was needed (fresh and upgraded schemas identical) |
+| Virtual threads (`VIRTUAL_THREADS`, default on) + `DB_POOL_SIZE` (default 20) | ✅ P1 (v0.6.0) — e2e and contention smoke pass with both settings; no pinned stacks observed (`scripts/db/evidence/p1/pinning.txt`) |
+| Container image on Java 21 (`eclipse-temurin:21.0.12.1_1-jre-noble`, `JAVA_OPTS`) | ✅ P1 (v0.6.0) — container acceptance passed on local Docker Desktop: A9 image build on the pinned base, A10 health/API/Swagger, A11 in-container e2e 8/8; A12 cleanup complete. Evidence: `scripts/db/evidence/p1/container/` (commit `96a7d36`; `A11-backend.log` redactions in `redactions.txt`) |
 
 ### Verified by `scripts/e2e_test.py` (8/8 passing)
 Admin login · non-UKM rejected (403) · 60 OTP registrations · product+event creation ·
@@ -56,7 +60,7 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via stream consu
 
 ## 2. Environment & how to run
 
-- **JDK: use 17 or 21. NEVER build with JDK 25** (Lombok breaks: `TypeTag :: UNKNOWN`).
+- **JDK: use 21** (since P1 the build targets `release 21`; other JDKs are not verified with Lombok 1.18.46).
   ```bash
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
   ```
@@ -246,7 +250,8 @@ Write at least a happy-path test where noted.
 
 ## 8. Known gotchas (already handled — keep them in mind)
 
-1. **JDK 25 breaks Lombok** — build with 17/21.
+1. **Build with JDK 21.** The build targets `release 21` since P1; JDK 25 broke the old Lombok
+   1.18.36 (`TypeTag :: UNKNOWN`) and has not been re-verified with the Boot-managed 1.18.46.
 2. **MySQL reserved words** — `condition` → `item_condition`. Check new columns.
 3. **Actuator mail health** — disabled in `application.yml` (`management.health.mail.enabled=false`)
    so a missing SMTP doesn't make `/health` report DOWN.
@@ -280,8 +285,9 @@ Write at least a happy-path test where noted.
 - ⬜ Next: v0.5+ upgrade. Master spec: `docs/CHANGE_SPEC.md` (dependencies, registries, coverage matrix).
   Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
-  P0 (v0.5.0) is implemented; P1 starts only after the P0 PR is merged. Human decisions pending:
-  D1 (stay on Boot 3.5.16, gates P1), D2 (embedding provider, gates P5b), D3 (implement P7).
+  P0 (v0.5.0) and P1 (v0.6.0) are implemented; P2 starts only after the P1 PR is merged.
+  D1 decided 2026-10-04: `D1=boot-3.5.16` (stay on Boot 3.5.16; no further OSS patches on the 3.5 line).
+  Human decisions pending: D2 (embedding provider, gates P5b), D3 (implement P7).
 
 ---
 

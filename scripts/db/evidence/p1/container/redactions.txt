@@ -1,0 +1,7 @@
+A11-backend.log is the full backend container log captured during A11 (115 lines), with two kinds of
+values replaced before commit. Line count and every other character are unchanged.
+- line 58: "Using generated security password: <uuid>" -> "<redacted: ...>". Spring Boot's per-JVM default
+  in-memory user password; not used by the app (JWT auth); the container was destroyed by A12.
+- 30 lines "[OTP] (mail disabled) code for studentN@siswa.ukm.edu.my = NNNNNN" -> "= <redacted>".
+  One-time codes for synthetic e2e users; consumed during A11; the database volume was removed by A12.
+The remaining UUIDs ("persisted order N (token=...)") are seckill order idempotency tokens, not credentials.

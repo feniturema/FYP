@@ -1,0 +1,27 @@
+# P1 effective dependency versions (docs/phases/P1.md §6.1)
+# generated 2026-10-04T07:25:25Z on commit 053828d; cd backend && ./mvnw -B -q help:effective-pom / dependency:list -DincludeScope=runtime
+
+## check 1: grep -E '<5 pinned artifacts>' deps.txt | wc -l   (expected 5)
+com.mysql:mysql-connector-j:jar:9.7.0:runtime
+org.flywaydb:flyway-core:jar:11.7.2:compile
+org.flywaydb:flyway-mysql:jar:11.7.2:compile
+org.hibernate.orm:hibernate-core:jar:6.6.53.Final:compile
+org.springdoc:springdoc-openapi-starter-webmvc-ui:jar:2.8.17:compile
+count=5
+
+## check 2: grep -A1 '<artifactId>lombok</artifactId>' effective-pom.xml | grep -c '1.18.46'   (expected >=1)
+count=2
+
+## parent / compiler
+spring-boot-starter-parent 3.5.16; maven.compiler.release=21
+
+## other notable resolved versions
+com.fasterxml.jackson.core:jackson-databind:jar:2.21.4:compile
+com.h2database:h2:jar:2.3.232:runtime
+com.zaxxer:HikariCP:jar:6.3.3:compile
+io.jsonwebtoken:jjwt-api:jar:0.12.6:compile
+io.lettuce:lettuce-core:jar:6.6.0.RELEASE:compile
+org.apache.tomcat.embed:tomcat-embed-core:jar:10.1.55:compile
+org.springframework.boot:spring-boot:jar:3.5.16:compile
+org.springframework.security:spring-security-core:jar:6.5.11:compile
+org.springframework:spring-core:jar:6.2.19:compile
