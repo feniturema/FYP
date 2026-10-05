@@ -52,7 +52,8 @@ class SeckillServiceBuyTest {
     @BeforeEach
     void setUp() {
         service = new SeckillService(mock(SeckillEventRepository.class), mock(ProductRepository.class),
-                mock(OrderRepository.class), redis, deduct, rollback, cache, outbox, mapper, meters);
+                mock(OrderRepository.class), redis, deduct, rollback, cache, outbox, mapper, meters,
+                mock(SeckillOrderWriter.class), "async");
         Instant now = Instant.now();
         activeWindow(now.minus(1, ChronoUnit.MINUTES), now.plus(10, ChronoUnit.MINUTES));
     }

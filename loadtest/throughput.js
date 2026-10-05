@@ -4,6 +4,7 @@
 //      SUMMARY_PATH, RUN_ID, K6_VERSION.
 import http from 'k6/http';
 import exec from 'k6/execution';
+import { Rate } from 'k6/metrics';
 import { studentToken } from './lib/jwt.js';
 import { recordBuy, count, resultCounts, textReport, REJECT_STATUS } from './lib/result.js';
 
@@ -16,6 +17,10 @@ const STEADY = Number(__ENV.STEADY || 20);
 const USER_BASE = Number(__ENV.USER_BASE || 1000000000);
 const STEADY_OFFSET = 50000000;
 const MAX_VUS = Math.max(20, RATE * 4);
+
+// P3 §6.3: share of buys that were ACCEPTED. A throughput run is only valid when the steady phase
+// stays >= 0.99, i.e. the stock never ran out (409 fast rejections are not business throughput).
+const acceptRate = new Rate('seckill_accept_rate');
 
 export const options = {
   scenarios: {
@@ -37,8 +42,10 @@ export const options = {
       maxVUs: MAX_VUS,
     },
   },
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
   thresholds: {
     'http_reqs{scenario:steady}': ['count>0'],
+    'seckill_accept_rate{scenario:steady}': ['rate>=0.99'],
     'dropped_iterations{scenario:steady}': ['count==0'],
     'seckill_results{scenario:steady,result:ACCEPTED}': ['count>0'],
     'seckill_results{scenario:steady,result:UNPARSEABLE}': ['count==0'],
@@ -63,7 +70,17 @@ export default function () {
     headers: { Authorization: `Bearer ${studentToken(userId, SIGNING_KEY)}` },
     tags: { name: 'seckill_buy' },
   });
-  recordBuy(res);
+  acceptRate.add(recordBuy(res) === 'ACCEPTED');
+}
+
+function rateOf(data, name) {
+  const m = data.metrics[name];
+  return m && m.values && typeof m.values.rate === 'number' ? m.values.rate : null;
+}
+
+function trend(data, name) {
+  const v = (data.metrics[name] || {}).values || {};
+  return { p50: v.med ?? null, p95: v['p(95)'] ?? null, p99: v['p(99)'] ?? null };
 }
 
 export function handleSummary(data) {
@@ -89,6 +106,9 @@ export function handleSummary(data) {
     steadyResults: resultCounts(data, 'steady'),
     steadyRequests,
     droppedSteady: count(data, 'dropped_iterations{scenario:steady}'),
+    acceptRateSteady: rateOf(data, 'seckill_accept_rate{scenario:steady}'),
+    // Latency of the steady phase in ms (P3 §6.3); med = p50.
+    latencySteadyMs: trend(data, 'http_req_duration{scenario:steady}'),
     mismatch: count(data, 'seckill_mismatch'),
   };
   const out = { stdout: textReport(meta, data) };

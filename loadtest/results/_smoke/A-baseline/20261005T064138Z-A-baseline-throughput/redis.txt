@@ -1,0 +1,3 @@
+key	value
+seckill:stock:4	99647
+scard seckill:bought:4	353

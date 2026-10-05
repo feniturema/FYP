@@ -16,11 +16,13 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.4.6 per-phase execution packages | Claude Code | 2026-10-03 | `docs/phases/` + `docs/agent-prompts/` for all 11 phases, coverage matrix, registries (docs only). |
 | v0.5.0 P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke | Claude Code | 2026-10-04 | `backend/mvnw`, `V1__baseline.sql`, `scripts/lib`, `scripts/db`, `loadtest/`; no application code changed. |
 | v0.6.0 P1: Java 21, Spring Boot 3.5.16, virtual threads | Claude Code | 2026-10-04 | Build/runtime upgrade (D1=boot-3.5.16); `scripts/p1/`; no application code changed. |
+| v0.7.1 P3: sync comparison mode + benchmark tooling | Claude Code | 2026-10-05 | `SECKILL_MODE=sync` (benchmark only, default stays async), `loadtest/bench/`, three-throughput summary; performance numbers pending (formal measurement by a person). |
 
 v0.4.2 (commit `5f5fae4`) is the pre-upgrade baseline (annotated tag `v0.4.2-baseline`, created in
 upgrade phase P0). P0 (v0.5.0) added the Maven Wrapper, Flyway-managed schema and the k6 load-test
 tooling; P1 (v0.6.0) moved to Java 21 / Spring Boot 3.5.16; P2 (v0.7.0) replaced the SecKill Redis
-Stream with a transactional outbox + Kafka pipeline and made normal checkout race-free. See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
+Stream with a transactional outbox + Kafka pipeline and made normal checkout race-free; P3 (v0.7.1)
+added a synchronous comparison mode and the A/B/C benchmark tooling (numbers pending, see "Performance"). See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
 handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
 (Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s) and
 `docs/CHANGE_SPEC.md` for the master implementation spec, with one execution package per phase in
@@ -253,7 +255,73 @@ directory and reconciles orders in MySQL and stock in Redis afterwards. Install 
 image `grafana/k6:2.3.0`). From v0.7.0 rejections are HTTP 409 (`--reject-status 409`, the new
 default) and `--drain outbox` waits for the Kafka pipeline. See [`loadtest/README.md`](loadtest/README.md).
 Results under `loadtest/results/_smoke/` are smoke runs that only prove the tooling works —
-they are **not** performance numbers; the formal baseline is measured by a person before P3.
+they are **not** performance numbers. P3 added the three-configuration benchmark
+(`loadtest/bench/`, see "Performance" below and [`loadtest/README.md`](loadtest/README.md#three-configurations-p3)).
+
+---
+
+## Performance
+
+**Status: formal measurement pending** (H1 in `docs/phases/P3.md` §7.3, done by a person on a
+dedicated machine and submitted as a separate PR). Until then every value below is `TBD` and this
+README makes no performance claim. The smoke runs in `loadtest/results/_smoke/` only prove the
+tooling works and are not performance data.
+
+Configurations (same host, same JDK 21, same JVM options `-Xms2g -Xmx2g -XX:+UseG1GC`, own
+database each, MySQL / Redis / Kafka from the `ftsm-p3-bench` compose project):
+
+| Config | Backend | SecKill write path after the Redis Lua deduction |
+| --- | --- | --- |
+| A-baseline | tag `v0.4.2-baseline` | Redis Stream, consumed by the old stream consumer |
+| B-sync | current code, `SECKILL_MODE=sync` (benchmark only) | order + `sold_count` + payment in the request thread |
+| C-async | current code, default `async` | outbox row (autocommit) → relay → Kafka → listener |
+
+Metric definitions (`loadtest/summarize.py`, `docs/phases/P3.md` §6.3): `requestRps` = steady-phase
+requests ÷ steady seconds; `acceptedRps` = steady-phase `ACCEPTED` ÷ steady seconds (409 / sold-out
+rejections excluded); `persistedRps` = orders ÷ (last − first order `created_at`); `drainSeconds` =
+time until everything accepted is persisted (whole seconds); latency = steady-phase
+`http_req_duration` (contention runs: whole run, p50/p95 only). A run
+counts only if k6 passed all thresholds (no dropped iterations, accept rate ≥ 0.99), the drain
+succeeded and orders equal accepted requests.
+
+Throughput (sustainable rate = highest step where all three runs were valid, p99 < 1000 ms and
+errors < 1 %):
+
+| Config | Sustainable rate | requestRps | acceptedRps | persistedRps | drainSeconds | p50 (ms) | p95 (ms) | p99 (ms) | Valid runs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A-baseline | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| B-sync | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| C-async | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+
+Contention (stock 100, 5000 buyers, 1000 VUs, 3 runs per config):
+
+| Config | Orders = stock | Duplicates | persistedRps | drainSeconds | p50 (ms) | p95 (ms) | Valid runs |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| A-baseline | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| B-sync | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+| C-async | TBD | TBD | TBD | TBD | TBD | TBD | TBD |
+
+Environment: TBD (filled from [`loadtest/bench/ENVIRONMENT.md`](loadtest/bench/ENVIRONMENT.md)).
+
+### Design trade-offs (SecKill)
+
+- **Why the hot path still does one MySQL insert.** A `202` must mean the purchase intent is
+  durable. Redis alone is not enough (AOF `everysec` can lose about the last second of
+  deductions), and writing to Kafka from the request would be a second, non-transactional write
+  next to Redis. One autocommit row in `order_outbox` is the cheapest durable record; the relay and
+  Kafka then run off the request path, so a Kafka outage delays orders but does not reject buyers.
+  Config B (sync) writes the whole order transaction in the request thread instead; the A/B/C
+  comparison measures what the outbox costs and saves.
+- **When it undersells (it never oversells).** Overselling is blocked twice: the Lua deduction
+  with its per-user guard in Redis, then `sold_count < seckill_stock` and the unique key
+  `(buyer_id, seckill_event_id)` in MySQL. Units can be lost (undersold) in four rare windows: a
+  crash between the Redis deduction and the outbox insert, an outbox insert whose outcome cannot be
+  confirmed (logged `UNCERTAIN`, nothing given back), a failed compensation, or a consumer that
+  never catches up.
+- **How it is reconciled.** `SeckillReconciler` gives every ended event a final verdict by
+  comparing the outbox, the orders, `sold_count` and the Redis counter; differences raise
+  `seckill.reconcile.mismatch` / `seckill.reconcile.incomplete`. Nothing is repaired
+  automatically; an operator decides from the logged ids (`docs/phases/P2.md` §6.1, §6.8).
 
 ---
 
@@ -298,7 +366,8 @@ host), `KAFKA_REPLICAS` (topic replication factor, default `1`),
 `SEED_ENABLED`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, `UPLOAD_DIR`, `SERVER_PORT`,
 `VIRTUAL_THREADS` (default `true`: Tomcat requests, `@Scheduled` and `@Async` run on Java 21
 virtual threads; `false` restores platform threads), `DB_POOL_SIZE` (Hikari maximum pool size,
-default `20`). In the container, `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75`) is passed to
+default `20`), `SECKILL_MODE` (`async`, the default and the only production setting; `sync` writes
+the order in the request thread and exists only for the P3 benchmark comparison). In the container, `JAVA_OPTS` (default `-XX:MaxRAMPercentage=75`) is passed to
 `java`; the runtime image is pinned to `eclipse-temurin:21.0.12.1_1-jre-noble`.
 
 Profiles: default/`dev` (MySQL). Docker Compose sets

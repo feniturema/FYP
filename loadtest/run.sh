@@ -6,11 +6,16 @@
 #                 --reject-status 200|409 --drain stream|outbox|none --mysql <target> --redis <target> \
 #                 [--out-root loadtest/results/_smoke]
 # Targets: temp:<db> / temp (scripts/db/lib.sh), or compose:<project>:<env-file>[:<db>] (P2+).
-# --drain outbox (P2+) needs a compose MySQL target and verifies with loadtest/verify_outbox.sql
-# against hash-tagged Redis keys (seckill:stock:{<id>}); stream/none use verify_legacy.sql and the
-# pre-P2 key names. Pre-P2 code must be run with --reject-status 200.
+# --drain picks the code generation being measured (docs/phases/P3.md §6.4):
+#   stream  pre-P2 code (baseline/P0/P1): verify_legacy.sql, keys seckill:stock:<id>, orders by ref_id
+#   outbox  P2+ async: waits for outbox + Kafka (needs a compose MySQL target); verify_outbox.sql,
+#           keys seckill:stock:{<id>}, orders by seckill_event_id
+#   none    P2+ sync (SECKILL_MODE=sync): nothing to wait for; same verification as outbox plus
+#           "no outbox row for the event" (sync never writes the outbox)
+# Pre-P2 code must be run with --reject-status 200. Optional env recorded in run.json (P3):
+# BACKEND_MODE (e.g. baseline-v0.4.2 / sync / async) and BACKEND_JVM_ARGS.
 #
-# Writes <out-root>/<config>/<RUN_ID>/{run.json,summary.json,k6.log,verify.tsv,redis.txt}.
+# Writes <out-root>/<config>/<RUN_ID>/{run.json,summary.json,k6.log,verify.tsv,persist.tsv,redis.txt}.
 # Exit code: k6's exit code if non-zero (99 = thresholds failed), otherwise the first failure of
 # 2 usage / existing run dir / unknown target, 3 drain timeout, 4 verification mismatch.
 # The backend under test must already be running at --base against the --mysql/--redis targets.
@@ -20,7 +25,7 @@ REPO=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 # shellcheck source=../scripts/db/lib.sh
 source "$REPO/scripts/db/lib.sh"
 
-usage() { sed -n '2,17p' "${BASH_SOURCE[0]}" >&2; exit 2; }
+usage() { sed -n '2,21p' "${BASH_SOURCE[0]}" >&2; exit 2; }
 
 config= scenario= base=http://127.0.0.1:8080 secret_env=JWT_SECRET stock= buyers= vus=
 rate= ramp= steady= reject_status= drain= mysql_target= redis_target= out_root=loadtest/results/_smoke
@@ -79,7 +84,7 @@ dir="$out_root/$config/$run_id"
 mkdir -p "$out_root/$config"
 mkdir "$dir"
 today=${run_id%%T*}
-run_seq=$(find "$out_root" -mindepth 2 -maxdepth 2 -type d -name "${today}T*" | wc -l)
+run_seq=$(( $(find "$out_root" -mindepth 2 -maxdepth 2 -type d -name "${today}T*" | wc -l) ))   # (( )): BSD wc pads with spaces
 user_base=$(( 1000000000 + run_seq * 100000000 ))
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "run.sh: $dir (runSeq=$run_seq userBase=$user_base)" >&2
@@ -92,11 +97,13 @@ def num(k):
     v = e.get(k, "")
     return int(v) if v.lstrip("-").isdigit() else None
 doc = {
+    "format": 2,   # P3: persist.tsv, drainSeconds, backendMode, jvmArgs
     "runId": e["RJ_RUN_ID"], "gitSha": e["RJ_GIT_SHA"], "gitDirty": e["RJ_GIT_DIRTY"] == "1",
+    "backendMode": e.get("BACKEND_MODE") or "unknown", "jvmArgs": e.get("BACKEND_JVM_ARGS") or "",
     "config": e["RJ_CONFIG"], "scenario": e["RJ_SCENARIO"],
     "eventId": num("RJ_EVENT_ID"), "productId": num("RJ_PRODUCT_ID"),
     "startedAt": e["RJ_STARTED_AT"], "finishedAt": e.get("RJ_FINISHED_AT") or None,
-    "k6_rc": num("RJ_K6_RC"), "drain_rc": num("RJ_DRAIN_RC"),
+    "k6_rc": num("RJ_K6_RC"), "drain_rc": num("RJ_DRAIN_RC"), "drainSeconds": num("RJ_DRAIN_SECONDS"),
     "verify_ok": {"1": True, "0": False}.get(e.get("RJ_VERIFY_OK", ""), None),
     "verify_detail": e.get("RJ_VERIFY_DETAIL") or None,
     "exit_code": num("RJ_EXIT"),
@@ -149,23 +156,27 @@ env "${k6_env[@]}" "$K6" run --quiet --no-color "$REPO/loadtest/$scenario.js" > 
 cat "$dir/k6.log" >&2
 export RJ_K6_RC=$k6_rc
 
-# Step 4: wait for the consumer to persist everything.
-drain_rc=0
+# Step 4: wait for the consumer to persist everything (drainSeconds = upper bound of persist latency).
+drain_rc=0 drain_t0=$SECONDS
 if [[ $drain == outbox ]]; then
   "$REPO/loadtest/drain.sh" outbox --event "$event_id" --mysql "$mysql_target" --timeout 180 || drain_rc=$?
 else
   "$REPO/loadtest/drain.sh" "$drain" --redis "$redis_target" --timeout 120 || drain_rc=$?
 fi
-export RJ_DRAIN_RC=$drain_rc
+export RJ_DRAIN_RC=$drain_rc RJ_DRAIN_SECONDS=$(( SECONDS - drain_t0 ))
 
 # Step 5: database and Redis evidence (P2 renamed the keys to seckill:<kind>:{<id>}).
-if [[ $drain == outbox ]]; then
-  verify_sql=$REPO/loadtest/verify_outbox.sql stock_key="seckill:stock:{$event_id}" bought_key="seckill:bought:{$event_id}"
-else
+if [[ $drain == stream ]]; then
   verify_sql=$REPO/loadtest/verify_legacy.sql stock_key="seckill:stock:$event_id" bought_key="seckill:bought:$event_id"
+  event_column=ref_id
+else
+  verify_sql=$REPO/loadtest/verify_outbox.sql stock_key="seckill:stock:{$event_id}" bought_key="seckill:bought:{$event_id}"
+  event_column=seckill_event_id
 fi
 { echo "SET @event_id = $event_id;"; cat "$verify_sql"; } \
   | mysql_target_cli "$mysql_target" --batch > "$dir/verify.tsv"
+{ echo "SET @event_id = $event_id;"; sed "s/__EVENT_COLUMN__/$event_column/" "$REPO/loadtest/persist.sql"; } \
+  | mysql_target_cli "$mysql_target" --batch > "$dir/persist.tsv"
 {
   printf 'key\tvalue\n'
   printf '%s\t%s\n' "$stock_key" "$(redis_target_cli "$redis_target" GET "$stock_key")"
@@ -174,9 +185,9 @@ fi
 
 # Step 6: orders == buyers == accepted (whole test); contention also needs Redis stock 0.
 verify_rc=0
-verify_detail=$(python3 - "$dir" "$scenario" <<'PY'
+verify_detail=$(python3 - "$dir" "$scenario" "$drain" <<'PY'
 import csv, json, os, sys
-d, scenario = sys.argv[1], sys.argv[2]
+d, scenario, drain = sys.argv[1], sys.argv[2], sys.argv[3]
 problems = []
 try:
     meta = json.load(open(os.path.join(d, "summary.json")))["meta"]
@@ -193,6 +204,8 @@ if "sold_count" in v:   # verify_outbox.sql (P2+): MySQL-side counter and outbox
         problems.append(f"sold_count={v['sold_count']} orders={orders}")
     if int(v["outbox_new"]) != 0:
         problems.append(f"outbox_new={v['outbox_new']} (want 0)")
+    if drain == "none" and int(v["outbox_total"]) != 0:   # sync mode never writes the outbox (P3 §6.4)
+        problems.append(f"outbox_total={v['outbox_total']} (sync must not write the outbox)")
 redis = dict(l.rstrip("\n").split("\t", 1) for l in open(os.path.join(d, "redis.txt")) if "\t" in l)
 stock_key = next((k for k in redis if k.startswith("seckill:stock:")), None)
 remaining = redis.get(stock_key, "")

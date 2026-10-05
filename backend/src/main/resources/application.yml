@@ -99,6 +99,9 @@ app:
   upload:
     dir: ${UPLOAD_DIR:uploads}   # relative to working dir; Docker maps this to a volume
   seckill:
+    # async (default): outbox -> Kafka -> listener (P2). sync is ONLY for the P3 benchmark comparison:
+    # the order is written in the request thread, no outbox / Kafka. Never make sync the default.
+    mode: ${SECKILL_MODE:async}
     topic: seckill.orders
     dlt-topic: seckill.orders.DLT
     partitions: 6

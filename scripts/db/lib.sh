@@ -248,14 +248,26 @@ stop_temp_redis() {
 }
 
 # start_backend JAR DB PORT LOG   (sets BACKEND_PID; returns wait_http's code)
+# Optional env (P3): BACKEND_DB_PORT (default 3307), BACKEND_REDIS_PORT (default 6380),
+# BACKEND_KAFKA (KAFKA_BOOTSTRAP for the backend; unset = not passed), BACKEND_JVM_ARGS (space-separated
+# JVM options, e.g. "-Xms2g -Xmx2g -XX:+UseG1GC"; unset = none).
 start_backend() {
   local jar=$1 db=$2 port=$3 log=$4
+  local db_port=${BACKEND_DB_PORT:-3307} redis_port=${BACKEND_REDIS_PORT:-6380}
   local -a envs=(
-    "DB_URL=jdbc:mysql://127.0.0.1:3307/$db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-    DB_USERNAME=root "DB_PASSWORD=$DB_PASSWORD" REDIS_HOST=127.0.0.1 REDIS_PORT=6380
+    "DB_URL=jdbc:mysql://127.0.0.1:$db_port/$db?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+    DB_USERNAME=root "DB_PASSWORD=$DB_PASSWORD" REDIS_HOST=127.0.0.1 "REDIS_PORT=$redis_port"
     "JWT_SECRET=$JWT_SECRET" "SERVER_PORT=$port" MAIL_ENABLED=false LLM_API_KEY=
   )
-  env "${envs[@]}" java -jar "$jar" > "$log" 2>&1 &
+  [[ -z ${BACKEND_KAFKA:-} ]] || envs+=("KAFKA_BOOTSTRAP=$BACKEND_KAFKA")
+  local -a java_cmd=(java)
+  if [[ -n ${BACKEND_JVM_ARGS:-} ]]; then
+    local -a jvm_args
+    read -r -a jvm_args <<< "$BACKEND_JVM_ARGS"
+    java_cmd+=("${jvm_args[@]}")
+  fi
+  java_cmd+=(-jar "$jar")
+  env "${envs[@]}" "${java_cmd[@]}" > "$log" 2>&1 &
   BACKEND_PID=$!
   wait_http "http://127.0.0.1:$port/actuator/health" 180 "$BACKEND_PID" "$log"
 }
