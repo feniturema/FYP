@@ -1,0 +1,16 @@
+{
+  "failsafe": {
+    "MigrationIT": 1,
+    "SeckillConcurrencyIT": 1,
+    "DuplicatePurchaseIT": 1,
+    "ConsumerRestartIT": 1,
+    "KafkaOutageIT": 1,
+    "ReplayIT": 1,
+    "OutboxCompensationIT": 1,
+    "DltPublishFailureIT": 1,
+    "ProductOrderRaceIT": 1,
+    "ItemOrderRaceIT": 1,
+    "ReconcilerIT": 2
+  },
+  "surefire_min_total": 70
+}

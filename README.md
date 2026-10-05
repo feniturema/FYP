@@ -1,5 +1,7 @@
 # FTSM E-Commerce Platform
 
+[![ci](https://github.com/feniturema/FYP/actions/workflows/ci.yml/badge.svg)](https://github.com/feniturema/FYP/actions/workflows/ci.yml)
+
 A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 
 ## Traceability
@@ -18,6 +20,7 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.6.0 P1: Java 21, Spring Boot 3.5.16, virtual threads | Claude Code | 2026-10-04 | Build/runtime upgrade (D1=boot-3.5.16); `scripts/p1/`; no application code changed. |
 | v0.7.1 P3: sync comparison mode + benchmark tooling | Claude Code | 2026-10-05 | `SECKILL_MODE=sync` (benchmark only, default stays async), `loadtest/bench/`, three-throughput summary; performance numbers pending (formal measurement by a person). |
 | v0.8.0 P4a: catalog-core module split + root Maven Wrapper | Codex (review fixes: Claude Code) | 2026-10-06 | Pure model/repository extraction, root multi-module build, Docker context update, and command-path cleanup; runtime behavior unchanged. |
+| v0.9.0 P6a: Testcontainers integration tests + GitHub Actions CI | Claude Code | 2026-10-06 | 11 `*IT` classes (Failsafe) on MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2, zero-test guard `scripts/ci/check_test_reports.py`, `.github/workflows/ci.yml`; no application code changed. |
 
 v0.4.2 (commit `5f5fae4`) is the pre-upgrade baseline (annotated tag `v0.4.2-baseline`, created in
 upgrade phase P0). P0 (v0.5.0) added the Maven Wrapper, Flyway-managed schema and the k6 load-test
@@ -227,6 +230,11 @@ WebClient `Mono` so the servlet security context is respected (see CHANGELOG v0.
   P2 pipeline (`SeckillServiceBuyTest`, `OutboxPublisherTest`, `SeckillOrderListenerTest`,
   `KafkaConfigTest`, `SeckillReconcilerTest`, `SeckillEventCacheTest`, `SeckillControllerTest`) and
   H2 transaction tests (`SeckillOrderWriterH2Test`, `OrderServiceRollbackTest`). No broker needed.
+- **Integration tests** (`*IT`, run by Failsafe in the same `./mvnw -B verify`; since P6a): 11 classes /
+  12 cases on real MySQL 8.0.46, Kafka 3.9.2 and Redis 8.10.2 containers (Testcontainers 1.21.4), covering
+  the SecKill race, duplicate buys, listener stop/restart, Kafka outage, offset replay, outbox
+  compensation, DLT publish failure, normal-checkout races, reconciliation and the Flyway history. Needs
+  Docker; see "Running integration tests".
 - **P2 acceptance** (`scripts/p2/acceptance.sh`): e2e, backend crash, Kafka pause, offset replay,
   unconfirmable outbox write, normal-checkout race, reconciliation and a k6 smoke, all inside the
   compose project `ftsm-p2-acc`; evidence in `scripts/p2/evidence/`.
@@ -240,6 +248,21 @@ WebClient `Mono` so the servlet security context is respected (see CHANGELOG v0.
   Redis keeps `seckill:bought:{<eventId>}` across database resets: when you pair a fresh database
   with a Redis that already ran the e2e, flush Redis first, or earlier winners (same user and event
   ids) come back as `ALREADY_BOUGHT` and show up as `others` in the race summary.
+
+### Running integration tests
+
+Docker (≥ 24) must be running; Testcontainers starts and removes the containers itself.
+
+```bash
+./mvnw -B verify                                                       # unit tests + all *IT
+python3 scripts/ci/check_test_reports.py --expect scripts/ci/expected-tests.json   # zero-test guard
+./mvnw -B verify -Dit.test=MigrationIT                                 # one IT class
+```
+
+`check_test_reports.py` fails when an expected IT class has no report, runs fewer tests than listed in
+`scripts/ci/expected-tests.json`, or when any test is skipped. A phase that adds an IT adds it to that file.
+CI (`.github/workflows/ci.yml`) runs the same on every PR, builds the frontend and the Docker images
+(without pushing), and publishes the images to GHCR only on pushes to `main`.
 
 Quick manual check with a JWT in `$TOKEN` (a single user is capped at 1 purchase; use
 distinct user tokens to test the stock cap):
@@ -339,8 +362,10 @@ Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
   deduction and the outbox insert, an outbox insert whose outcome cannot be confirmed, a failed
   compensation, or a consumer that never catches up. The reconciler reports them; nothing is
   repaired automatically (`docs/phases/P2.md` §6.1, §6.8).
-- If publishing to the DLT itself fails, the record is retried and its partition is blocked until
-  the DLT is reachable again (behaviour to be proven by an integration test in P6a).
+- If publishing to the DLT itself fails, the record is not committed: it is retried and its partition is
+  blocked until the DLT is reachable again (proven by `DltPublishFailureIT` in P6a). With the broker
+  default `auto.create.topics.enable=true` (also in `docker-compose.yml`), a deleted DLT is simply
+  recreated with broker defaults on the next publish, so that failure needs the broker to be unreachable.
 - The scheduled tasks (warm-up, relay, reconciler, janitor) run on every instance — run a
   **single backend replica** until they are guarded by a lock (P6b).
 - Uploads live on local disk (one volume), so multiple replicas would not share images.
