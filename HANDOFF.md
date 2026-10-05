@@ -14,6 +14,7 @@
 | Upgrade P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke tooling | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.5.0; `docs/phases/P0.md` |
 | Upgrade P1: Java 21, Spring Boot 3.5.16 (D1), virtual threads | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.6.0; `docs/phases/P1.md` |
 | Upgrade P2: transactional outbox + Kafka SecKill pipeline, conditional stock updates | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.7.0; `docs/phases/P2.md` |
+| Upgrade P3: SecKill sync comparison mode, A/B/C benchmark tooling (formal measurement pending) | Claude Code | 2026-10-05 | `CHANGELOG.md` v0.7.1; `docs/phases/P3.md` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -43,11 +44,12 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
-| Automated tests | ✅ 55 JUnit tests (13 classes; SecKill buy/outbox/listener/reconciler/controller + H2 transaction tests since P2) + `scripts/e2e_test.py` (8 checks) + `scripts/p2/acceptance.sh` (compose fault-injection acceptance); no Testcontainers IT yet (P6a) |
+| Automated tests | ✅ 63 JUnit tests (14 classes; SecKill buy/outbox/listener/reconciler/controller + H2 transaction tests since P2, sync mode since P3) + `scripts/e2e_test.py` (8 checks) + `scripts/p2/acceptance.sh` (compose fault-injection acceptance); no Testcontainers IT yet (P6a) |
 | Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
 | Maven Wrapper `backend/mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0) — use `cd backend && ./mvnw` until P4a moves it to the repo root |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
-| Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0) — smoke runs only; formal baseline measured by a person before P3 |
+| Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0); P3 (v0.7.1) added `persist.sql`, `--drain none`, the three-throughput `summarize.py`, `reset.sh` and `loadtest/bench/` (configs A-baseline / B-sync / C-async in compose project `ftsm-p3-bench`) — smoke runs only so far |
+| SecKill sync comparison mode (`SECKILL_MODE=sync`, `app.seckill.mode`; default `async`) | ✅ P3 (v0.7.1) — benchmark only: the order is written in the request thread, no outbox / Kafka; never make it the default. Smoke A3–A6 pass for A, B, C (`loadtest/results/_smoke/{A-baseline,B-sync,C-async}/`). **Formal measurement (H1) pending, by a person** (`docs/phases/P3.md` §7.3); README "Performance" stays `TBD` and no performance claim may be made until it is merged |
 | Java 21 + Boot 3.5.16 (Hibernate 6.6.53, Flyway 11.7.2, Lombok 1.18.46, Connector/J 9.7.0, springdoc 2.8.17) | ✅ P1 (v0.6.0) — D1=boot-3.5.16; no V1_1 migration was needed (fresh and upgraded schemas identical) |
 | Virtual threads (`VIRTUAL_THREADS`, default on) + `DB_POOL_SIZE` (default 20) | ✅ P1 (v0.6.0) — e2e and contention smoke pass with both settings; no pinned stacks observed (`scripts/db/evidence/p1/pinning.txt`) |
 | SecKill pipeline: MySQL outbox (`V2__seckill_outbox.sql`) → `OutboxRelay` → Kafka `seckill.orders` → `SeckillOrderListener`; 202 / 409 / 503; event-window cache; `SeckillReconciler` + `OutboxJanitor` | ✅ P2 (v0.7.0) — Redis Stream consumer removed; Redis 8.10.2 with AOF; keys hash-tagged `seckill:stock:{<id>}`. Acceptance A1–A14 pass (`scripts/p2/evidence/`). A6 was revised on 2026-10-04 (maintainer-approved) to per-request reconciliation with `scripts/p2/verify_crash.py`, because the old `orders == 202 received` contradicted §6.1; the old-spec failure is kept as `A6-oldspec-*` |
@@ -86,12 +88,14 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via the outbox �
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
-- **Tests:** `cd backend && ./mvnw -B verify` (55 tests; Mockito + H2 slices, Flyway off, no broker).
+- **Tests:** `cd backend && ./mvnw -B verify` (63 tests; Mockito + H2 slices, Flyway off, no broker).
   The `h2` runtime profile was removed in P2 (H2 is test scope only).
 - **Shared helpers for acceptance runs:** `scripts/lib/wait.sh` (`wait_http`, `wait_cmd` — every
   readiness wait must go through these), `scripts/db/lib.sh` (temporary MySQL 3307 / Redis 6380,
   `start_backend`; `compose:<project>:<env-file>[:<db>]` targets since P2), `loadtest/run.sh`
-  (k6 smoke/benchmark runs; `--drain outbox --reject-status 409` for P2+ code),
+  (k6 smoke/benchmark runs; `--drain outbox --reject-status 409` for P2+ code, `--drain none` for
+  `SECKILL_MODE=sync`), `loadtest/bench/` (P3 A/B/C benchmark: `infra_up.sh`, `run_config.sh`,
+  `infra_down.sh`; see `loadtest/README.md` "Three configurations (P3)"),
   `scripts/p2/acceptance.sh` (P2 acceptance in compose project `ftsm-p2-acc`).
 - **E2E test (backend must be running, with its log captured):**
   ```bash
@@ -304,7 +308,10 @@ Write at least a happy-path test where noted.
 - ⬜ Next: v0.5+ upgrade. Master spec: `docs/CHANGE_SPEC.md` (dependencies, registries, coverage matrix).
   Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
-  P0 (v0.5.0), P1 (v0.6.0) and P2 (v0.7.0) are implemented; P3 starts only after the P2 PR is merged.
+  P0 (v0.5.0), P1 (v0.6.0), P2 (v0.7.0) and P3 (v0.7.1: sync comparison mode, benchmark tooling, smoke)
+  are implemented; P4a starts only after the P3 PR is merged. P3 H1 (formal A/B/C measurement on a
+  dedicated machine, separate PR `P3-results: formal benchmark (A/B/C)`) is a pending human task and
+  can run in parallel with later phases.
   Production cutover to v0.7.0 with existing data is a manual step (README "Upgrading … to v0.7.0",
   `scripts/p2/precheck_cutover.py`, `docs/phases/P2.md` §10.1).
   D1 decided 2026-10-04: `D1=boot-3.5.16` (stay on Boot 3.5.16; no further OSS patches on the 3.5 line).

@@ -5,6 +5,76 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.7.1] — 2026-10-05 — P3: sync comparison mode and benchmark tooling
+
+Authored by Claude Code per `docs/phases/P3.md`. Adds a synchronous SecKill mode used **only** as a
+benchmark comparison (default stays `async`, unchanged from P2) and the tooling to measure three
+configurations: A = `v0.4.2-baseline`, B = current code with `SECKILL_MODE=sync`, C = current code,
+async. This version contains **no performance results**: the formal measurement (H1) is done by a person
+on a dedicated machine and lands in a separate PR; README "Performance" is all `TBD`.
+
+### Added
+- `app.seckill.mode` (`SECKILL_MODE`, `async` | `sync`, default `async`; case-insensitive, unknown values
+  fail at startup). `SeckillService.Mode`; in `sync` the order (order + `sold_count` + `FAKE_WALLET`) is
+  written by `SeckillOrderWriter.persist` in the request thread after the Lua deduction, without outbox or
+  Kafka. A constraint violation whose tracking token exists → 202; otherwise compensation + 503. Any other
+  failure is checked with the new `SeckillOrderWriter.existsByTrackingTokenSafely` (null when the check
+  itself fails): exists → 202, absent → compensation + 503, unknown → no compensation, `UNCERTAIN` log,
+  `seckill.outbox.uncertain` + 503 (`docs/phases/P3.md` §6.1).
+- `SeckillServiceSyncModeTest` (8 tests, incl. "default mode is async and uses the outbox").
+- `loadtest/persist.sql` (`persist.tsv`: orders of the event and their `created_at` span), `run.sh --drain none`
+  (sync: no wait; `verify_outbox.sql` plus "no outbox row for the event"), `loadtest/reset.sh`.
+- `loadtest/bench/`: `common.sh`, `infra_up.sh` / `infra_down.sh` (compose project `ftsm-p3-bench`:
+  MySQL 33306, Redis 36379, Kafka 39092; random JWT secret per bench directory), `run_config.sh A|B|C`
+  (build, host backend with `-Xms2g -Xmx2g -XX:+UseG1GC`, warm-up, `run.sh`, stop, guarded reset),
+  `ENVIRONMENT.md` (environment record template).
+- README "Performance" (fields complete, every value `TBD`) and "Design trade-offs (SecKill)";
+  `loadtest/README.md` "Three configurations (P3)", smoke vs formal, conclusion discipline.
+
+### Changed
+- `loadtest/throughput.js`: Rate `seckill_accept_rate` with threshold `{scenario:steady} rate>=0.99`;
+  `summaryTrendStats` include p(99); `meta.acceptRateSteady`, `meta.latencySteadyMs {p50,p95,p99}`.
+- `loadtest/run.sh`: `--drain stream|outbox|none` selects verify file, key format and the persist column
+  (`ref_id` / `seckill_event_id`); writes `persist.tsv`; `run.json` gains `"format": 2`, `backendMode`,
+  `jvmArgs`, `drainSeconds`; `runSeq` is an integer on BSD `wc`.
+- `loadtest/summarize.py`: rewritten for the §6.3 metrics (`requestRps`, `acceptedRps`, `persistedRps`,
+  `drainSeconds`, p50/p95/p99) and validity rules; `--configs`, `--self-test`; skips `warmup` directories;
+  lists pre-P3 run directories as "pre-P3 format, not evaluated"; exit 1 on any invalid run or a config
+  without a valid run.
+- `scripts/db/lib.sh` `start_backend`: `BACKEND_DB_PORT` (3307), `BACKEND_REDIS_PORT` (6380),
+  `BACKEND_KAFKA` (unset), `BACKEND_JVM_ARGS`.
+- `application.yml` `app.seckill.mode: ${SECKILL_MODE:async}`; `docker-compose.yml` backend
+  `SECKILL_MODE: ${SECKILL_MODE:-async}`.
+
+### Verified (`docs/phases/P3.md` §9; macOS arm64, Docker Engine 29.8.1 / Compose v5.5.1, k6 2.3.0 image; same host for k6 and services)
+Smoke runs on clean `fbfff58` (`run.json` `gitDirty=false`), `loadtest/results/_smoke/{A-baseline,B-sync,C-async}/`.
+**Smoke numbers are not performance data.**
+
+| ID | Result | Key output |
+| --- | --- | --- |
+| A1 | pass | `cd backend && ./mvnw -B verify`: 63 tests (14 classes, incl. 8 in `SeckillServiceSyncModeTest`), 0 failures, BUILD SUCCESS |
+| A2 | pass | `application.yml:104: mode: ${SECKILL_MODE:async}` |
+| A3 | pass | A contention (5/20) rc 0: 5 ACCEPTED + 15 SOLD_OUT (200), orders 5; throughput (20/5/15) rc 0: 353 accepted = 353 orders, accept rate 1.0 |
+| A4 | pass | B contention rc 0: 5 + 15 SOLD_OUT (409), orders 5, `outbox_total` 0; throughput rc 0: 352 = 352, `outbox_total` 0 |
+| A5 | pass | C contention rc 0: orders 5 = outbox 5, drained (lag 0); throughput rc 0: 353 = 353 = outbox, drained |
+| A6 | pass | `summarize.py --dir loadtest/results/_smoke --configs A-baseline,B-sync,C-async`: exit 0, 6 valid / 0 invalid, columns `requestRps`, `acceptedRps`, `persistedRps`; P0's two A-baseline runs listed as pre-P3, not evaluated; `--self-test` PASS |
+| A7 | pass | `grep -nE '[0-9]+ ?(QPS\|req/s)\|x faster\|倍' README.md`: no match |
+| H1 | **pending (human)** | formal measurement, separate PR `P3-results: formal benchmark (A/B/C)` |
+
+### Deviations from spec (details in the P3 PR)
+- Files outside the §4 list: `loadtest/reset.sh` (named by §7.2 step 7, missing from §4), `loadtest/bench/common.sh`
+  (shared settings of the bench scripts), one constructor call in `SeckillServiceBuyTest`.
+- `start_backend` also reads `BACKEND_JVM_ARGS`, so all configs get the §7.1 JVM options.
+- `SeckillService` compensation / uncertain helpers take a stage label so sync logs say "sync order write";
+  the async path's behaviour and log text are unchanged.
+- `run_config.sh` checks for k6 with `pgrep -f 'k6[^ ]* run'` (also matches the binary path and the image
+  name), and resets only after a run directory created by that call whose drain succeeded.
+- `summarize.py --configs` takes the result directory names (`A-baseline,B-sync,C-async`); §7.3 step 5 writes
+  `A,B,C`. Contention runs report p50/p95 only (`contention.js`, outside §4, has no p99; §6.3 latency is the
+  throughput steady phase). `infra_up.sh` also waits for Redis (60 s).
+- macOS host: k6 ran as the pinned `grafana/k6:2.3.0` image and a perl `timeout` shim stood in for coreutils
+  (both session-only, not committed).
+
 ## [v0.7.0] — 2026-10-04 — P2: transactional outbox + Kafka order pipeline, conditional stock updates
 
 Authored by Claude Code per `docs/phases/P2.md`. Replaces the SecKill Redis Stream with a MySQL
