@@ -43,12 +43,16 @@ if [[ $cfg == A ]]; then
   if [[ ! -f $jar ]]; then
     rm -rf "$base"
     git -C "$BENCH_REPO" worktree add --detach --force "$base" v0.4.2-baseline >/dev/null
-    (cd "$base/backend" && "$BENCH_REPO/backend/mvnw" -B -q -DskipTests package) > "$BENCH_TMP/build-A.log" 2>&1 \
-      || { echo "run_config: baseline build failed (see $BENCH_TMP/build-A.log)" >&2; exit 2; }
+    # This checkout's root Wrapper (reads .mvn/ next to itself); the baseline tag has no Wrapper of its own.
+    if [[ -f "$base/pom.xml" ]]; then
+      (cd "$base" && "$BENCH_REPO/mvnw" -B -q -pl backend -am -DskipTests package) > "$BENCH_TMP/build-A.log" 2>&1
+    else
+      (cd "$base/backend" && "$BENCH_REPO/mvnw" -B -q -DskipTests package) > "$BENCH_TMP/build-A.log" 2>&1
+    fi || { echo "run_config: baseline build failed (see $BENCH_TMP/build-A.log)" >&2; exit 2; }
   fi
   unset SECKILL_MODE
 else
-  (cd backend && ./mvnw -B -q -DskipTests package) > "$BENCH_TMP/build-$cfg.log" 2>&1 \
+  (cd "$BENCH_REPO" && ./mvnw -B -q -pl backend -am -DskipTests package) > "$BENCH_TMP/build-$cfg.log" 2>&1 \
     || { echo "run_config: build failed (see $BENCH_TMP/build-$cfg.log)" >&2; exit 2; }
   jar=$BENCH_REPO/backend/target/ecommerce-0.0.1-SNAPSHOT.jar
   if [[ $cfg == B ]]; then export SECKILL_MODE=sync; else unset SECKILL_MODE; fi

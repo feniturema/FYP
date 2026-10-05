@@ -17,12 +17,13 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.5.0 P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke | Claude Code | 2026-10-04 | `backend/mvnw`, `V1__baseline.sql`, `scripts/lib`, `scripts/db`, `loadtest/`; no application code changed. |
 | v0.6.0 P1: Java 21, Spring Boot 3.5.16, virtual threads | Claude Code | 2026-10-04 | Build/runtime upgrade (D1=boot-3.5.16); `scripts/p1/`; no application code changed. |
 | v0.7.1 P3: sync comparison mode + benchmark tooling | Claude Code | 2026-10-05 | `SECKILL_MODE=sync` (benchmark only, default stays async), `loadtest/bench/`, three-throughput summary; performance numbers pending (formal measurement by a person). |
+| v0.8.0 P4a: catalog-core module split + root Maven Wrapper | Codex (review fixes: Claude Code) | 2026-10-06 | Pure model/repository extraction, root multi-module build, Docker context update, and command-path cleanup; runtime behavior unchanged. |
 
 v0.4.2 (commit `5f5fae4`) is the pre-upgrade baseline (annotated tag `v0.4.2-baseline`, created in
 upgrade phase P0). P0 (v0.5.0) added the Maven Wrapper, Flyway-managed schema and the k6 load-test
 tooling; P1 (v0.6.0) moved to Java 21 / Spring Boot 3.5.16; P2 (v0.7.0) replaced the SecKill Redis
 Stream with a transactional outbox + Kafka pipeline and made normal checkout race-free; P3 (v0.7.1)
-added a synchronous comparison mode and the A/B/C benchmark tooling (numbers pending, see "Performance"). See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
+added a synchronous comparison mode and the A/B/C benchmark tooling (numbers pending, see "Performance"); P4a (v0.8.0) split the catalog entities and repositories into `catalog-core` and moved the Maven Wrapper to the repository root. See `CHANGELOG.md` for per-version details, `HANDOFF.md` for the implementation
 handoff/status ledger, `docs/UPGRADE_PLAN.md` for the planned v0.5+ upgrade
 (Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, K8s) and
 `docs/CHANGE_SPEC.md` for the master implementation spec, with one execution package per phase in
@@ -56,11 +57,11 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 
 - **JDK 21** (the build targets `release 21`; JDK 17 can no longer compile it). Other JDKs
   (e.g. 25) have not been verified with the Boot-managed Lombok 1.18.46 — use 21. If
-  `cd backend && ./mvnw -v` reports another JDK, point Maven at JDK 21:
+  `./mvnw -v` reports another JDK, point Maven at JDK 21:
   ```bash
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # macOS
   ```
-- No Maven install needed: use the Maven Wrapper `backend/mvnw` (Maven 3.9.11, download verified
+- No Maven install needed: use the Maven Wrapper `mvnw` (Maven 3.9.11, download verified
   by `distributionSha256Sum`).
 - **Node 20+** and npm.
 - For local dev: **MySQL 8.0**, **Redis** and **Kafka**. The simplest way is the compose services:
@@ -73,12 +74,17 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 
 ### 1. Backend
 ```bash
-cd backend
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # if needed
 # Needs MySQL + Redis + Kafka reachable on localhost (defaults: root/root, db auto-created).
 docker compose up -d mysql redis kafka              # from the repo root, if you have nothing local
-KAFKA_BOOTSTRAP=127.0.0.1:29092 ./mvnw spring-boot:run
+./mvnw -B -pl backend -am -DskipTests package       # builds catalog-core + backend in one reactor; no install needed
+KAFKA_BOOTSTRAP=127.0.0.1:29092 java -jar backend/target/ecommerce-0.0.1-SNAPSHOT.jar
 ```
+`./mvnw spring-boot:run` from the repo root does not work since P4a: the `ftsm-parent` aggregator has no
+main class, and `./mvnw -pl backend spring-boot:run` cannot resolve `catalog-core` unless it was installed.
+To use `spring-boot:run`, install first (and again after any `catalog-core` change):
+`./mvnw -B -pl backend -am -DskipTests install`, then `KAFKA_BOOTSTRAP=127.0.0.1:29092 ./mvnw -pl backend spring-boot:run`.
+
 - API: http://localhost:8080
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - Seeded admin: `admin@ukm.edu.my` / `Admin@123` (plus 3 sample B2C products)
@@ -217,7 +223,7 @@ WebClient `Mono` so the servlet security context is respected (see CHANGELOG v0.
 
 ## Tests
 
-- **Unit / slice tests** (`cd backend && ./mvnw -B verify`): 55 tests in 13 classes, including the
+- **Unit / slice tests** (`./mvnw -B verify`): 70 tests in 14 classes, including the
   P2 pipeline (`SeckillServiceBuyTest`, `OutboxPublisherTest`, `SeckillOrderListenerTest`,
   `KafkaConfigTest`, `SeckillReconcilerTest`, `SeckillEventCacheTest`, `SeckillControllerTest`) and
   H2 transaction tests (`SeckillOrderWriterH2Test`, `OrderServiceRollbackTest`). No broker needed.

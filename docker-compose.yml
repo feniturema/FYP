@@ -61,7 +61,9 @@ services:
       retries: 12
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
     restart: unless-stopped
     depends_on:
       mysql:

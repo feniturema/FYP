@@ -16,6 +16,7 @@
 | Upgrade P2: transactional outbox + Kafka SecKill pipeline, conditional stock updates | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.7.0; `docs/phases/P2.md` |
 | Upgrade P3: SecKill sync comparison mode, A/B/C benchmark tooling (formal measurement pending) | Claude Code | 2026-10-05 | `CHANGELOG.md` v0.7.1; `docs/phases/P3.md` |
 | Fix: SecKill event cache loads outside synchronized monitors (found while diagnosing H1 stalls) | Claude Code | 2026-10-05 | `CHANGELOG.md` [Unreleased]; `loadtest/results/H1-cache-fix/CACHE-FIX.md` |
+| Upgrade P4a: catalog-core module split + root Maven Wrapper | Codex (review fixes: Claude Code) | 2026-10-06 | `CHANGELOG.md` v0.8.0; `docs/phases/P4a.md`; PR #7 |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -32,6 +33,7 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Area | State |
 |---|---|
 | Backend scaffold (Spring Boot 3.5.16 / Java 21 since P1; was 3.3.5 / 17) | ✅ Done, compiles, boots |
+| Module layout (`catalog-core` + `backend`) | ✅ P4a (v0.8.0) code complete on `p4a-modules`; PR #7 open, awaiting review/merge. Root reactor; runtime behavior unchanged |
 | Frontend scaffold (Vite + React 18 + TS + Tailwind) | ✅ Done, builds |
 | Auth: UKM-domain + OTP + JWT + roles | ✅ Done & verified |
 | SecKill: Lua atomic deduct + Redis Stream consumer | ✅ Done & verified (no oversell) |
@@ -47,7 +49,7 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
 | Automated tests | ✅ 70 JUnit tests (14 classes; SecKill buy/outbox/listener/reconciler/controller + H2 transaction tests since P2, sync mode since P3, event-cache pinning regression since the cache fix) + `scripts/e2e_test.py` (8 checks) + `scripts/p2/acceptance.sh` (compose fault-injection acceptance); no Testcontainers IT yet (P6a) |
 | Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
-| Maven Wrapper `backend/mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0) — use `cd backend && ./mvnw` until P4a moves it to the repo root |
+| Maven Wrapper `mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0), moved to the repo root in P4a (v0.8.0) |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
 | Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0); P3 (v0.7.1) added `persist.sql`, `--drain none`, the three-throughput `summarize.py`, `reset.sh` and `loadtest/bench/` (configs A-baseline / B-sync / C-async in compose project `ftsm-p3-bench`) — smoke runs only so far |
 | SecKill sync comparison mode (`SECKILL_MODE=sync`, `app.seckill.mode`; default `async`) | ✅ P3 (v0.7.1) — benchmark only: the order is written in the request thread, no outbox / Kafka; never make it the default. Smoke A3–A6 pass for A, B, C (`loadtest/results/_smoke/{A-baseline,B-sync,C-async}/`). **Formal measurement (H1) pending, by a person** (`docs/phases/P3.md` §7.3); README "Performance" stays `TBD` and no performance claim may be made until it is merged |
@@ -78,18 +80,22 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via the outbox �
   from compose or another broker.
 - **Backend (dev):**
   ```bash
-  cd backend
   export JAVA_HOME=$(/usr/libexec/java_home -v 21)
-  KAFKA_BOOTSTRAP=127.0.0.1:29092 ./mvnw spring-boot:run   # db auto-created; Flyway migrates (V1, V2)
+  ./mvnw -B -pl backend -am -DskipTests package          # catalog-core + backend in one reactor, no install
+  KAFKA_BOOTSTRAP=127.0.0.1:29092 java -jar backend/target/ecommerce-0.0.1-SNAPSHOT.jar   # db auto-created; Flyway migrates (V1, V2)
   # API http://localhost:8080 · Swagger http://localhost:8080/swagger-ui.html
   # Seeded admin: admin@ukm.edu.my / Admin@123
   # OTP codes are printed to the console (mail disabled by default)
   ```
+  `./mvnw spring-boot:run` from the repo root does not work since P4a: the `ftsm-parent` aggregator has no
+  main class, and `./mvnw -pl backend spring-boot:run` cannot resolve `catalog-core` unless it was installed.
+  To use `spring-boot:run`, install first (and again after any `catalog-core` change):
+  `./mvnw -B -pl backend -am -DskipTests install`, then `KAFKA_BOOTSTRAP=127.0.0.1:29092 ./mvnw -pl backend spring-boot:run`.
 - **Frontend (dev):**
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
-- **Tests:** `cd backend && ./mvnw -B verify` (70 tests; Mockito + H2 slices, Flyway off, no broker).
+- **Tests:** `./mvnw -B verify` (70 tests; Mockito + H2 slices, Flyway off, no broker).
   The `h2` runtime profile was removed in P2 (H2 is test scope only).
 - **Shared helpers for acceptance runs:** `scripts/lib/wait.sh` (`wait_http`, `wait_cmd` — every
   readiness wait must go through these), `scripts/db/lib.sh` (temporary MySQL 3307 / Redis 6380,
@@ -317,9 +323,9 @@ Write at least a happy-path test where noted.
   Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
   P0 (v0.5.0), P1 (v0.6.0), P2 (v0.7.0) and P3 (v0.7.1: sync comparison mode, benchmark tooling, smoke)
-  are implemented; P3 was merged via PR #5 on 2026-10-05, and P4a has not been started. The event-cache
-  pinning fix (CHANGELOG [Unreleased]) was found during the H1 attempt after that merge, is outside the P3
-  spec scope and goes to `main` in its own PR.
+  are implemented and merged (P3 via PR #5; the event-cache pinning fix, CHANGELOG [Unreleased], via PR #6,
+  both 2026-10-05). P4a (v0.8.0) is code complete on `p4a-modules`; PR #7 is open and awaiting review/merge.
+  Next phase after P4a: P6a, then P4b (none started).
   An H1 attempt on the dev MacBook (2026-10-05) is incomplete and diagnostic only: no config had a valid
   step at RATE ≥ 1000, and its numbers are not performance results (evidence kept locally, uncommitted).
   P3 H1 (formal A/B/C measurement on a
