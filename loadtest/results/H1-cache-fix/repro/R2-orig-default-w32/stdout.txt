@@ -1,0 +1,12 @@
+pid=722 java=21.0.1 parallelism=default maxPoolSize=default trackAllThreads=true waiters=32 cpus=8
+STEP loaderEntered=true loaderState=RUNNABLE
+STEP waitersStarted=false started.count=25 waiterStates={RUNNABLE=25, BLOCKED=7} loaderState=WAITING
+STEP unrelatedProbeCompletedWithin5s=false (5006 ms)
+STEP jcmd Thread.print rc=0
+STEP jcmd Thread.dump_to_file rc=0
+STEP afterRelease probeCompleted=true (2 ms after release)
+STEP threadsStillAlive=0
+STEP cache has no shutdown()
+JFR events {jdk.JavaMonitorEnter=7, jdk.VirtualThreadPinned=1}
+JFR pinned x1: CacheStallRepro.lambda$main$0:57 <- CacheStallRepro$$Lambda+0x000000040116c200.2121317689.invoke:-1 (25399 ms)
+RESULT unrelatedVirtualThreadStarved=true probeMs=5006

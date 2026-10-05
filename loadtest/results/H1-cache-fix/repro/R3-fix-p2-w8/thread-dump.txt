@@ -1,0 +1,254 @@
+2053
+2026-10-05T13:36:06.488403Z
+21.0.1+12-LTS-29
+
+#1 "main"
+      java.base/jdk.internal.misc.Unsafe.park(Native Method)
+      java.base/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:269)
+      java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:1758)
+      java.base/java.lang.ProcessImpl.waitFor(ProcessImpl.java:440)
+      CacheStallRepro.jcmd(CacheStallRepro.java:139)
+      CacheStallRepro.main(CacheStallRepro.java:95)
+      java.base/jdk.internal.reflect.DirectMethodHandleAccessor.invoke(DirectMethodHandleAccessor.java:103)
+      java.base/java.lang.reflect.Method.invoke(Method.java:580)
+      jdk.compiler/com.sun.tools.javac.launcher.Main.execute(Main.java:484)
+      jdk.compiler/com.sun.tools.javac.launcher.Main.run(Main.java:208)
+      jdk.compiler/com.sun.tools.javac.launcher.Main.main(Main.java:135)
+
+#9 "Reference Handler"
+      java.base/java.lang.ref.Reference.waitForReferencePendingList(Native Method)
+      java.base/java.lang.ref.Reference.processPendingReferences(Reference.java:246)
+      java.base/java.lang.ref.Reference$ReferenceHandler.run(Reference.java:208)
+
+#10 "Finalizer"
+      java.base/java.lang.Object.wait0(Native Method)
+      java.base/java.lang.Object.wait(Object.java:366)
+      java.base/java.lang.Object.wait(Object.java:339)
+      java.base/java.lang.ref.NativeReferenceQueue.await(NativeReferenceQueue.java:48)
+      java.base/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:158)
+      java.base/java.lang.ref.NativeReferenceQueue.remove(NativeReferenceQueue.java:89)
+      java.base/java.lang.ref.Finalizer$FinalizerThread.run(Finalizer.java:173)
+
+#11 "Signal Dispatcher"
+
+#18 "Common-Cleaner"
+      java.base/jdk.internal.misc.Unsafe.park(Native Method)
+      java.base/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:269)
+      java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.await(AbstractQueuedSynchronizer.java:1847)
+      java.base/java.lang.ref.ReferenceQueue.await(ReferenceQueue.java:71)
+      java.base/java.lang.ref.ReferenceQueue.remove0(ReferenceQueue.java:143)
+      java.base/java.lang.ref.ReferenceQueue.remove(ReferenceQueue.java:218)
+      java.base/jdk.internal.ref.CleanerImpl.run(CleanerImpl.java:140)
+      java.base/java.lang.Thread.run(Thread.java:1583)
+      java.base/jdk.internal.misc.InnocuousThread.run(InnocuousThread.java:186)
+
+#19 "Notification Thread"
+
+#25 "JFR Recorder Thread"
+
+#26 "JFR Periodic Tasks"
+      java.base/java.lang.Object.wait0(Native Method)
+      java.base/java.lang.Object.wait(Object.java:366)
+      jdk.jfr/jdk.jfr.internal.PlatformRecorder.takeNap(PlatformRecorder.java:559)
+      jdk.jfr/jdk.jfr.internal.PlatformRecorder.periodicTask(PlatformRecorder.java:527)
+      jdk.jfr/jdk.jfr.internal.PlatformRecorder.lambda$startDiskMonitor$1(PlatformRecorder.java:446)
+      java.base/java.lang.Thread.run(Thread.java:1583)
+
+#45 "Attach Listener"
+      java.base/java.lang.Thread.getStackTrace(Thread.java:2450)
+      java.base/jdk.internal.vm.ThreadDumper.dumpThread(ThreadDumper.java:162)
+      java.base/jdk.internal.vm.ThreadDumper.lambda$dumpThreads$0(ThreadDumper.java:155)
+      java.base/java.util.stream.ReferencePipeline$2$1.accept(ReferencePipeline.java:179)
+      java.base/java.util.Spliterators$ArraySpliterator.forEachRemaining(Spliterators.java:1024)
+      java.base/java.util.stream.AbstractPipeline.copyInto(AbstractPipeline.java:509)
+      java.base/java.util.stream.AbstractPipeline.wrapAndCopyInto(AbstractPipeline.java:499)
+      java.base/java.util.stream.StreamSpliterators$WrappingSpliterator.forEachRemaining(StreamSpliterators.java:310)
+      java.base/java.util.stream.Streams$ConcatSpliterator.forEachRemaining(Streams.java:734)
+      java.base/java.util.stream.ReferencePipeline$Head.forEach(ReferencePipeline.java:762)
+      java.base/jdk.internal.vm.ThreadDumper.dumpThreads(ThreadDumper.java:155)
+      java.base/jdk.internal.vm.ThreadDumper.dumpThreads(ThreadDumper.java:151)
+      java.base/jdk.internal.vm.ThreadDumper.dumpThreadsToFile(ThreadDumper.java:117)
+      java.base/jdk.internal.vm.ThreadDumper.dumpThreads(ThreadDumper.java:67)
+
+#35 "repro-waiter-0" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#36 "repro-waiter-1" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#37 "repro-waiter-2" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#38 "repro-waiter-3" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#39 "repro-waiter-4" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#40 "repro-waiter-5" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#41 "repro-waiter-6" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#42 "repro-waiter-7" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$2(CacheStallRepro.java:81)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#29 "repro-loader" virtual
+      java.base/java.lang.VirtualThread.park(VirtualThread.java:582)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2639)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:54)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:219)
+      java.base/java.util.concurrent.CompletableFuture$Signaller.block(CompletableFuture.java:1864)
+      java.base/java.util.concurrent.ForkJoinPool.unmanagedBlock(ForkJoinPool.java:3780)
+      java.base/java.util.concurrent.ForkJoinPool.managedBlock(ForkJoinPool.java:3725)
+      java.base/java.util.concurrent.CompletableFuture.waitingGet(CompletableFuture.java:1898)
+      java.base/java.util.concurrent.CompletableFuture.join(CompletableFuture.java:2117)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.get(SeckillEventCache.java:74)
+      CacheStallRepro.lambda$main$1(CacheStallRepro.java:74)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#32 "seckill-event-load-0" virtual
+      java.base/java.lang.VirtualThread.parkNanos(VirtualThread.java:621)
+      java.base/java.lang.System$2.parkVirtualThread(System.java:2648)
+      java.base/jdk.internal.misc.VirtualThreads.park(VirtualThreads.java:67)
+      java.base/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:267)
+      java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.acquire(AbstractQueuedSynchronizer.java:756)
+      java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer.tryAcquireSharedNanos(AbstractQueuedSynchronizer.java:1126)
+      java.base/java.util.concurrent.CountDownLatch.await(CountDownLatch.java:276)
+      CacheStallRepro.lambda$main$0(CacheStallRepro.java:57)
+      jdk.proxy2/jdk.proxy2.$Proxy27.findById(Unknown Source)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.load(SeckillEventCache.java:105)
+      my.edu.ukm.ftsm.ecommerce.service.SeckillEventCache.lambda$get$0(SeckillEventCache.java:72)
+      java.base/java.util.concurrent.CompletableFuture$AsyncSupply.run(CompletableFuture.java:1768)
+      java.base/java.util.concurrent.ThreadPerTaskExecutor$TaskRunner.run(ThreadPerTaskExecutor.java:314)
+      java.base/java.lang.VirtualThread.run(VirtualThread.java:309)
+
+#44 "process reaper (pid 2063)"
+      java.base/java.lang.ProcessHandleImpl.waitForProcessExit0(Native Method)
+      java.base/java.lang.ProcessHandleImpl$1.run(ProcessHandleImpl.java:163)
+      java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1144)
+      java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+      java.base/java.lang.Thread.run(Thread.java:1583)
+      java.base/jdk.internal.misc.InnocuousThread.run(InnocuousThread.java:186)
+
+#33 "ForkJoinPool.commonPool-worker-1"
+      java.base/jdk.internal.misc.Unsafe.park(Native Method)
+      java.base/java.util.concurrent.locks.LockSupport.parkUntil(LockSupport.java:449)
+      java.base/java.util.concurrent.ForkJoinPool.awaitWork(ForkJoinPool.java:1891)
+      java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1809)
+      java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:188)
+
+#34 "VirtualThread-unparker"
+      java.base/jdk.internal.misc.Unsafe.park(Native Method)
+      java.base/java.util.concurrent.locks.LockSupport.parkNanos(LockSupport.java:269)
+      java.base/java.util.concurrent.locks.AbstractQueuedSynchronizer$ConditionObject.awaitNanos(AbstractQueuedSynchronizer.java:1758)
+      java.base/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:1182)
+      java.base/java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue.take(ScheduledThreadPoolExecutor.java:899)
+      java.base/java.util.concurrent.ThreadPoolExecutor.getTask(ThreadPoolExecutor.java:1070)
+      java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1130)
+      java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:642)
+      java.base/java.lang.Thread.run(Thread.java:1583)
+      java.base/jdk.internal.misc.InnocuousThread.run(InnocuousThread.java:186)
+
+#30 "ForkJoinPool-1-worker-1"
+      java.base/jdk.internal.misc.Unsafe.park(Native Method)
+      java.base/java.util.concurrent.locks.LockSupport.park(LockSupport.java:371)
+      java.base/java.util.concurrent.ForkJoinPool.awaitWork(ForkJoinPool.java:1893)
+      java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1809)
+      java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:188)
+
+#31 "ForkJoinPool-1-worker-2"
+      java.base/jdk.internal.misc.Unsafe.park(Native Method)
+      java.base/java.util.concurrent.locks.LockSupport.parkUntil(LockSupport.java:449)
+      java.base/java.util.concurrent.ForkJoinPool.awaitWork(ForkJoinPool.java:1891)
+      java.base/java.util.concurrent.ForkJoinPool.runWorker(ForkJoinPool.java:1809)
+      java.base/java.util.concurrent.ForkJoinWorkerThread.run(ForkJoinWorkerThread.java:188)
