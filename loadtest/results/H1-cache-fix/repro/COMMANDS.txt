@@ -1,0 +1,8 @@
+# Deterministic reproduction (standalone JVM, real SeckillEventCache + Caffeine 3.2.4, repository = blocking proxy).
+# lib/ = BOOT-INF/lib of backend/target/ecommerce-0.0.1-SNAPSHOT.jar; orig-classes = BOOT-INF/classes of the same jar (HEAD dd3150f);
+# fixed classes = backend/target/classes after compiling the uncommitted fix. 150 s outer timeout on every run.
+java -cp "orig-classes:lib/*" -Djdk.trackAllThreads=true -Djdk.virtualThreadScheduler.parallelism=2 -Djdk.virtualThreadScheduler.maxPoolSize=2 CacheStallRepro.java R1-orig-p2-w8 8
+java -cp "orig-classes:lib/*" -Djdk.trackAllThreads=true CacheStallRepro.java R2-orig-default-w32 32
+java -cp "backend/target/classes:lib/*" -Djdk.trackAllThreads=true -Djdk.virtualThreadScheduler.parallelism=2 -Djdk.virtualThreadScheduler.maxPoolSize=2 CacheStallRepro.java R3-fix-p2-w8 8
+java -cp "backend/target/classes:lib/*" -Djdk.trackAllThreads=true CacheStallRepro.java R4-fix-default-w32 32
+# R1/R3 use 2 carriers = controlled injection; R2/R4 use the default scheduler (8 carriers on this host).

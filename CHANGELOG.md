@@ -5,6 +5,49 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [Unreleased] — 2026-10-05 — Fix: SecKill event cache loads outside synchronized monitors
+
+Authored by Claude Code. Found while diagnosing backend stalls in an H1 attempt on the dev MacBook; outside
+the P3 spec scope, no version assigned. Details and evidence: `loadtest/results/H1-cache-fix/CACHE-FIX.md`.
+
+### Fixed
+- `SeckillEventCache` (every SecKill buy calls it first) loaded the event window with a synchronous Caffeine
+  loader, which runs inside `ConcurrentHashMap.compute`'s monitor. On JDK 21 the loader's DB wait pinned its
+  carrier and every same-key caller blocked on the monitor and pinned one too. Reproduced deterministically in a
+  standalone JVM with the real class and Caffeine 3.2.4 and a blocking repository: with the default scheduler
+  (8 carriers) and 32 callers, all 8 carriers were held (loader in `ConcurrentHashMap.compute:1916`, 7 callers
+  BLOCKED at `:1932`), 25 callers and an unrelated virtual thread never ran until the load was released.
+- Now an `AsyncCache`: the monitor only stores a future, the query runs on the cache's own
+  virtual-thread-per-task executor (`seckill-event-load-*`, never the common pool, shut down by `@PreDestroy`)
+  in its own read-only repository transaction, and callers `join()` outside any monitor. `CompletionException`
+  is unwrapped, so callers still see the repository's exception (e.g. `DataAccessException`); the failed future
+  is removed conditionally, so the next get retries. TTL, `maximumSize`, same-key coalescing, cached
+  `Optional.empty` and `invalidate` are kept.
+
+### Changed (behaviour)
+- Concurrent callers of one failing load share that failure (previously each re-ran the load in turn inside
+  the monitor, each possibly waiting for the 30 s Hikari timeout); the next call still retries.
+- `invalidate` no longer waits for an in-flight load; callers of that load get its result, the next get loads
+  again, and the old result never replaces the newer one.
+- The rethrown exception's stack starts on the loader thread; after shutdown, a miss throws
+  `RejectedExecutionException`.
+
+### Verified
+- Same reproduction after the fix: 32/32 callers parked in `CompletableFuture.join` (unmounted), the unrelated
+  virtual thread ran at once, 0/8 carriers held, no `ConcurrentHashMap.compute` frame in the dump.
+- `SeckillEventCacheTest` (11 tests): the starvation test fails on the old implementation and passes on the
+  new one; coalescing, missing event, failure keeps type and retries, expiry (controlled `Ticker`), invalidate
+  during an in-flight load, loader thread, shutdown. `./mvnw -B verify`: 70 tests pass.
+- Diagnostic load runs on the fix (B r200 ×3, C r400 ×3, same collectors): no CPU≈0 stall; one B run was
+  invalid on p99 (2.2 s) from MySQL row-lock queueing on the shared `seckill_events.sold_count` row in sync
+  mode, which recovered within ~10 s. **Not performance data**: formal H1 is still not done.
+
+### Not confirmed
+- That this path caused the two original stalls: no thread dump exists from those moments (their symptoms —
+  CPU≈0, health and metrics silent, one Hikari timeout every 30 s, a waiter timing out after 131 s against a
+  30 s timeout — match it). Also unexplained: a 52 s delay of Hikari's platform housekeeper thread and the
+  JVM RSS drop during the stall (the host had 3.1 GB of 4 GB swap in use later that day).
+
 ## [v0.7.1] — 2026-10-05 — P3: sync comparison mode and benchmark tooling
 
 Authored by Claude Code per `docs/phases/P3.md`. Adds a synchronous SecKill mode used **only** as a

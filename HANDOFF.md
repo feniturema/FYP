@@ -15,6 +15,7 @@
 | Upgrade P1: Java 21, Spring Boot 3.5.16 (D1), virtual threads | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.6.0; `docs/phases/P1.md` |
 | Upgrade P2: transactional outbox + Kafka SecKill pipeline, conditional stock updates | Claude Code | 2026-10-04 | `CHANGELOG.md` v0.7.0; `docs/phases/P2.md` |
 | Upgrade P3: SecKill sync comparison mode, A/B/C benchmark tooling (formal measurement pending) | Claude Code | 2026-10-05 | `CHANGELOG.md` v0.7.1; `docs/phases/P3.md` |
+| Fix: SecKill event cache loads outside synchronized monitors (found while diagnosing H1 stalls) | Claude Code | 2026-10-05 | `CHANGELOG.md` [Unreleased]; `loadtest/results/H1-cache-fix/CACHE-FIX.md` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
@@ -44,14 +45,14 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
-| Automated tests | ✅ 63 JUnit tests (14 classes; SecKill buy/outbox/listener/reconciler/controller + H2 transaction tests since P2, sync mode since P3) + `scripts/e2e_test.py` (8 checks) + `scripts/p2/acceptance.sh` (compose fault-injection acceptance); no Testcontainers IT yet (P6a) |
+| Automated tests | ✅ 70 JUnit tests (14 classes; SecKill buy/outbox/listener/reconciler/controller + H2 transaction tests since P2, sync mode since P3, event-cache pinning regression since the cache fix) + `scripts/e2e_test.py` (8 checks) + `scripts/p2/acceptance.sh` (compose fault-injection acceptance); no Testcontainers IT yet (P6a) |
 | Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
 | Maven Wrapper `backend/mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0) — use `cd backend && ./mvnw` until P4a moves it to the repo root |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
 | Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0); P3 (v0.7.1) added `persist.sql`, `--drain none`, the three-throughput `summarize.py`, `reset.sh` and `loadtest/bench/` (configs A-baseline / B-sync / C-async in compose project `ftsm-p3-bench`) — smoke runs only so far |
 | SecKill sync comparison mode (`SECKILL_MODE=sync`, `app.seckill.mode`; default `async`) | ✅ P3 (v0.7.1) — benchmark only: the order is written in the request thread, no outbox / Kafka; never make it the default. Smoke A3–A6 pass for A, B, C (`loadtest/results/_smoke/{A-baseline,B-sync,C-async}/`). **Formal measurement (H1) pending, by a person** (`docs/phases/P3.md` §7.3); README "Performance" stays `TBD` and no performance claim may be made until it is merged |
 | Java 21 + Boot 3.5.16 (Hibernate 6.6.53, Flyway 11.7.2, Lombok 1.18.46, Connector/J 9.7.0, springdoc 2.8.17) | ✅ P1 (v0.6.0) — D1=boot-3.5.16; no V1_1 migration was needed (fresh and upgraded schemas identical) |
-| Virtual threads (`VIRTUAL_THREADS`, default on) + `DB_POOL_SIZE` (default 20) | ✅ P1 (v0.6.0) — e2e and contention smoke pass with both settings; no pinned stacks observed (`scripts/db/evidence/p1/pinning.txt`) |
+| Virtual threads (`VIRTUAL_THREADS`, default on) + `DB_POOL_SIZE` (default 20) | ✅ P1 (v0.6.0) — e2e and contention smoke pass with both settings; no pinned stacks observed (`scripts/db/evidence/p1/pinning.txt`). That check predates the P2 event cache, whose synchronous loader did pin carriers under load; fixed after P3 (§8 gotcha 7) |
 | SecKill pipeline: MySQL outbox (`V2__seckill_outbox.sql`) → `OutboxRelay` → Kafka `seckill.orders` → `SeckillOrderListener`; 202 / 409 / 503; event-window cache; `SeckillReconciler` + `OutboxJanitor` | ✅ P2 (v0.7.0) — Redis Stream consumer removed; Redis 8.10.2 with AOF; keys hash-tagged `seckill:stock:{<id>}`. Acceptance A1–A14 pass (`scripts/p2/evidence/`). A6 was revised on 2026-10-04 (maintainer-approved) to per-request reconciliation with `scripts/p2/verify_crash.py`, because the old `orders == 202 received` contradicted §6.1; the old-spec failure is kept as `A6-oldspec-*` |
 | Normal B2C / C2C checkout race | ✅ P2 (v0.7.0) — conditional `UPDATE` (`decrementStock`, `markSold`) inside `OrderService.create`'s transaction; A10: 20 concurrent buyers of a 1-unit product → exactly one order |
 | Container image on Java 21 (`eclipse-temurin:21.0.12.1_1-jre-noble`, `JAVA_OPTS`) | ✅ P1 (v0.6.0) — container acceptance passed on local Docker Desktop: A9 image build on the pinned base, A10 health/API/Swagger, A11 in-container e2e 8/8; A12 cleanup complete. Evidence: `scripts/db/evidence/p1/container/` (commit `96a7d36`; `A11-backend.log` redactions in `redactions.txt`) |
@@ -88,7 +89,7 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via the outbox �
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
-- **Tests:** `cd backend && ./mvnw -B verify` (63 tests; Mockito + H2 slices, Flyway off, no broker).
+- **Tests:** `cd backend && ./mvnw -B verify` (70 tests; Mockito + H2 slices, Flyway off, no broker).
   The `h2` runtime profile was removed in P2 (H2 is test scope only).
 - **Shared helpers for acceptance runs:** `scripts/lib/wait.sh` (`wait_http`, `wait_cmd` — every
   readiness wait must go through these), `scripts/db/lib.sh` (temporary MySQL 3307 / Redis 6380,
@@ -279,20 +280,27 @@ Write at least a happy-path test where noted.
 5. **Local MySQL root has no password** (Homebrew setup) — run backend with `DB_PASSWORD=""` in dev.
 6. **`SeckillEvent` uses `@DynamicUpdate`** so status/flag saves never overwrite `sold_count`,
    which the listener changes with a conditional `UPDATE`. Keep it, or never save stale events.
+7. **No blocking work inside `synchronized` or `ConcurrentHashMap.compute` on virtual threads (JDK 21).**
+   A synchronous Caffeine loader runs inside `ConcurrentHashMap.compute`'s monitor; with a DB query
+   in it, the loader pins its carrier and every same-key caller blocks on the monitor and pins one
+   too, so with as many callers as carriers (8 on the dev Mac) no virtual thread in the JVM runs.
+   Reproduced deterministically; `SeckillEventCache` now uses `AsyncCache` with its own
+   virtual-thread loader (`loadtest/results/H1-cache-fix/CACHE-FIX.md`). Use the same pattern for
+   any new cache that loads from MySQL, Redis or HTTP.
 
 ### Known gaps (NOT handled yet — see `docs/UPGRADE_PLAN.md` §1 for the fix plan)
 
-7. **Single replica only.** The scheduled tasks (`reconcileEvents`, `OutboxRelay`,
+8. **Single replica only.** The scheduled tasks (`reconcileEvents`, `OutboxRelay`,
    `SeckillReconciler`, `OutboxJanitor`) run on every instance; warm-up is `SET NX` now, but the
    relay/reconciler are not designed for several instances until ShedLock (P6b).
-8. **SecKill can undersell in four rare windows** (crash between Redis and the outbox INSERT,
+9. **SecKill can undersell in four rare windows** (crash between Redis and the outbox INSERT,
    unconfirmable INSERT, failed compensation, consumer backlog not drained within the grace).
    The reconciler reports them (`seckill.reconcile.*` counters, WARN logs); nothing is repaired
    automatically. Oversell is prevented twice (Lua, `sold_count < seckill_stock`).
-9. **DLT publish failure blocks the partition** until the DLT is reachable (unverified Spring Kafka
+10. **DLT publish failure blocks the partition** until the DLT is reachable (unverified Spring Kafka
    behaviour; P6a `DltPublishFailureIT` must prove it).
-10. **Uploads on local disk** (`UPLOAD_DIR` / `uploads_data` volume) — not shared across replicas.
-11. **`prod` profile** is set by Docker Compose but has no overrides in `application.yml`.
+11. **Uploads on local disk** (`UPLOAD_DIR` / `uploads_data` volume) — not shared across replicas.
+12. **`prod` profile** is set by Docker Compose but has no overrides in `application.yml`.
 (The P0-era gaps "normal checkout race" and "Redis Stream durability" were closed in P2.)
 
 ---
@@ -309,7 +317,11 @@ Write at least a happy-path test where noted.
   Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
   P0 (v0.5.0), P1 (v0.6.0), P2 (v0.7.0) and P3 (v0.7.1: sync comparison mode, benchmark tooling, smoke)
-  are implemented; P4a starts only after the P3 PR is merged. P3 H1 (formal A/B/C measurement on a
+  are implemented; P4a starts only after the P3 PR is merged. The event-cache pinning fix
+  (CHANGELOG [Unreleased]) was found during the H1 attempt and is outside the P3 spec scope.
+  An H1 attempt on the dev MacBook (2026-10-05) is incomplete and diagnostic only: no config had a valid
+  step at RATE ≥ 1000, and its numbers are not performance results (evidence kept locally, uncommitted).
+  P3 H1 (formal A/B/C measurement on a
   dedicated machine, separate PR `P3-results: formal benchmark (A/B/C)`) is a pending human task and
   can run in parallel with later phases.
   Production cutover to v0.7.0 with existing data is a manual step (README "Upgrading … to v0.7.0",
