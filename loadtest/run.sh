@@ -84,7 +84,7 @@ dir="$out_root/$config/$run_id"
 mkdir -p "$out_root/$config"
 mkdir "$dir"
 today=${run_id%%T*}
-run_seq=$(find "$out_root" -mindepth 2 -maxdepth 2 -type d -name "${today}T*" | wc -l)
+run_seq=$(( $(find "$out_root" -mindepth 2 -maxdepth 2 -type d -name "${today}T*" | wc -l) ))   # (( )): BSD wc pads with spaces
 user_base=$(( 1000000000 + run_seq * 100000000 ))
 started_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 echo "run.sh: $dir (runSeq=$run_seq userBase=$user_base)" >&2
