@@ -5,6 +5,44 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.9.0] — 2026-10-06 — P6a: Testcontainers integration tests and CI
+
+Authored by Claude Code per `docs/phases/P6a.md`. Tests and CI only: no application code, migration or frontend
+change.
+
+### Added
+- `backend/pom.xml` (test scope, versions from the Boot 3.5.16 BOM): `spring-boot-testcontainers`, Testcontainers
+  1.21.4 (`junit-jupiter`, `mysql`, `kafka`), `testcontainers-redis` 2.2.4, Awaitility 4.2.2; `maven-failsafe-plugin`
+  3.5.6 (`integration-test` + `verify`, one reused fork, 1800 s timeout).
+- `it/TestcontainersConfiguration` (`mysql:8.0.46`, `apache/kafka:3.9.2`, `redis:8.10.2` as `@ServiceConnection`
+  beans) and `it/AbstractIntegrationTest` (§6.3 fixtures, plus `order()` and `createUser()` for the checkout races).
+- 11 IT classes / 12 cases: `MigrationIT`, `SeckillConcurrencyIT`, `DuplicatePurchaseIT`, `ConsumerRestartIT`
+  (graceful listener stop only — a crash is P2 A6), `KafkaOutageIT`, `ReplayIT`, `OutboxCompensationIT`,
+  `DltPublishFailureIT`, `ProductOrderRaceIT`, `ItemOrderRaceIT`, `ReconcilerIT` (2).
+- `scripts/ci/check_test_reports.py` + `scripts/ci/expected-tests.json` (`surefire_min_total` = 70, the Surefire
+  total measured at the start of P6a): fails on a missing report, fewer tests than expected, or any skipped test.
+- `.github/workflows/ci.yml`: `backend` (verify + report check + report upload), `frontend` (Node 20.20.2),
+  `detect` (image matrix from the Dockerfiles present), `images-build` (PR, no push), `images-publish` (push to
+  `main` only; the only job with `packages: write`).
+- README: CI badge and "Running integration tests".
+
+### Verified (macOS arm64, Docker Engine 29.8.1, JDK 21.0.1)
+- `./mvnw -B verify`: Surefire 70 / 0 / 0 / 0, Failsafe 12 / 0 / 0 / 0, BUILD SUCCESS; no Testcontainers container
+  left afterwards.
+- `check_test_reports.py`: exit 0 on the real reports; exit 1 with a deleted IT report, with an IT report of zero
+  tests, and with a skipped unit test.
+- `DltPublishFailureIT` confirms the P2 §6.1 statement that was marked [unverified]: when the DLT publish fails, the
+  offset is not committed past the record (redelivered, partition blocked) and `seckill.dlt.publish.failed` counts
+  it; once the DLT exists again the record lands there and the offset moves past it.
+- CI on the PR (A4) and GHCR publishing after merge (A6): see the PR.
+
+### Deviations from spec (details in the P6a PR)
+- `DltPublishFailureIT` runs its own broker with `auto.create.topics.enable=false` (maintainer decision): with the
+  broker default, deleting the DLT does not make the publish fail (the topic is recreated on the next publish), so
+  the §6.4 premise did not hold. The shared `TestcontainersConfiguration` is unchanged.
+- `ci.yml`: the three `${{ … }}` values inside YAML flow mappings are quoted; the spec's unquoted form is not valid
+  YAML (PyYAML: "while parsing a flow mapping").
+
 ## [Unreleased] — 2026-10-05 — Fix: SecKill event cache loads outside synchronized monitors
 
 Authored by Claude Code. Found while diagnosing backend stalls in an H1 attempt on the dev MacBook; outside
