@@ -1,0 +1,10 @@
+# A4 2026-10-05T21:38:19Z
+## docker compose ps (service state health)
+backend running healthy
+frontend running -
+kafka running healthy
+mcp-server running healthy
+mysql running healthy
+redis running healthy
+## login: token non-empty = true (length 213)
+## POST /api/chat reply: AI assistant is not configured yet.

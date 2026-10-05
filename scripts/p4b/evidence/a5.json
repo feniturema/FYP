@@ -1,0 +1,22 @@
+{
+  "protocolVersion": "2025-06-18",
+  "serverInfo": {
+    "name": "ftsm-shop",
+    "version": "1.0.0"
+  },
+  "tools": [
+    "get_product_detail",
+    "get_stock",
+    "list_flash_sales",
+    "search_products",
+    "search_secondhand_items"
+  ],
+  "call": {
+    "name": "get_stock",
+    "arguments": {
+      "productId": 1
+    },
+    "isError": false,
+    "text": "{\"productId\":1,\"totalStock\":100,\"flashSale\":null}"
+  }
+}

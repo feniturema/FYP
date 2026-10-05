@@ -1,0 +1,24 @@
+# A7 2026-10-05T21:38:19Z
+ Container ftsm-p4b-acc-mcp-server-1 Stopping
+ Container ftsm-p4b-acc-mcp-server-1 Stopped
+ Container ftsm-p4b-acc-backend-1 Restarting
+ Container ftsm-p4b-acc-backend-1 Started
+curl: (56) Recv failure: Connection reset by peer
+curl: (56) Recv failure: Connection reset by peer
+curl: (56) Recv failure: Connection reset by peer
+backend healthy after restart without mcp-server: {"status":"UP"}
+tools while mcp-server is stopped: ["my_orders"]
+backend log lines 'MCP server unavailable' since restart: 1
+ Container ftsm-p4b-acc-mysql-1 Waiting
+ Container ftsm-p4b-acc-redis-1 Waiting
+ Container ftsm-p4b-acc-kafka-1 Waiting
+ Container ftsm-p4b-acc-kafka-1 Healthy
+ Container ftsm-p4b-acc-redis-1 Healthy
+ Container ftsm-p4b-acc-mysql-1 Healthy
+ Container ftsm-p4b-acc-redis-1 Waiting
+ Container ftsm-p4b-acc-backend-1 Waiting
+ Container ftsm-p4b-acc-redis-1 Healthy
+ Container ftsm-p4b-acc-backend-1 Healthy
+ Container ftsm-p4b-acc-mcp-server-1 Starting
+ Container ftsm-p4b-acc-mcp-server-1 Started
+tools after mcp-server start (+31s): ["get_product_detail", "get_stock", "list_flash_sales", "my_orders", "search_products", "search_secondhand_items"]

@@ -234,7 +234,7 @@ not contact an external provider.
 
 ## Tests
 
-- **Unit / slice tests** (`./mvnw -B verify`): 107 tests in 21 classes, including the
+- **Unit / slice tests** (`./mvnw -B verify`): 108 tests in 21 classes, including the
   P2 pipeline (`SeckillServiceBuyTest`, `OutboxPublisherTest`, `SeckillOrderListenerTest`,
   `KafkaConfigTest`, `SeckillReconcilerTest`, `SeckillEventCacheTest`, `SeckillControllerTest`) and
   H2 transaction tests (`SeckillOrderWriterH2Test`, `OrderServiceRollbackTest`). No broker needed.

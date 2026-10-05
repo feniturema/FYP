@@ -50,7 +50,7 @@ the assistant is now Spring AI/MCP based with authenticated SSE streaming. The r
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI assistant (Spring AI + DeepSeek/MCP) | ✅ P4b implementation complete on `p4b-assistant-mcp`: authenticated SSE, five remote catalogue tools, local `my_orders`, bounded memory, Resilience4j fallbacks; no-key mode is deterministic |
-| Automated tests | ✅ 107 Surefire tests (21 classes) + 16 Testcontainers `*IT` classes / 30 Failsafe cases (real MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2 and MCP server), all green in `./mvnw -B verify`; guarded by `scripts/ci/check_test_reports.py` and CI in `.github/workflows/ci.yml` |
+| Automated tests | ✅ 108 Surefire tests (21 classes) + 16 Testcontainers `*IT` classes / 30 Failsafe cases (real MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2 and MCP server), all green in `./mvnw -B verify`; guarded by `scripts/ci/check_test_reports.py` and CI in `.github/workflows/ci.yml` |
 | Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
 | Maven Wrapper `mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0), moved to the repo root in P4a (v0.8.0) |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
@@ -98,7 +98,7 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via the outbox �
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
-- **Tests:** `./mvnw -B verify` (107 Surefire tests plus 30 Failsafe cases across 16 `*IT` classes;
+- **Tests:** `./mvnw -B verify` (108 Surefire tests plus 30 Failsafe cases across 16 `*IT` classes;
   Testcontainers needs a running Docker), then
   `python3 scripts/ci/check_test_reports.py --expect scripts/ci/expected-tests.json`.
   The `h2` runtime profile was removed in P2 (H2 is test scope only).
@@ -270,7 +270,7 @@ plane. `POST /api/assistant/stream` accepts a JSON message and optional conversa
 - Resilience4j supplies a circuit breaker and rate limiter; Reactor applies a 30-second stream timeout. In-memory conversation
   memory and tool-call records are bounded (1,000 conversations, two-hour idle expiry).
 - Security context is saved for async dispatch so JWT identity survives the SSE lifecycle.
-- P4b local acceptance A4–A10 passed in `/tmp/ftsm-p4b/evidence-run1/acceptance-summary.txt`.
+- P4b local acceptance A4–A10 passed on c7569c1; evidence in `scripts/p4b/evidence/`.
   The real-provider evaluation cases E1–E2 and optional Inspector screenshot E3 remain pending.
 
 ---
@@ -330,7 +330,7 @@ plane. `POST /api/assistant/stream` accepts a JSON message and optional conversa
   are implemented and merged (P3 via PR #5; the event-cache pinning fix, CHANGELOG [Unreleased], via PR #6,
   both 2026-10-05) and P4a (v0.8.0, PR #7, 2026-10-05). P6a (v0.9.0: Testcontainers ITs + CI) was
   merged via PR #8. P4b is implemented on `p4b-assistant-mcp`; local A4–A10 acceptance and the full
-  Maven verification are green. A draft PR is being prepared for review. The next implementation phase
+  Maven verification are green. Draft PR #9 is open for review (not merged). The next implementation phase
   after P4b is P5a (hybrid retrieval); P5b remains gated on human labelling.
   An H1 attempt on the dev MacBook (2026-10-05) is incomplete and diagnostic only: no config had a valid
   step at RATE ≥ 1000, and its numbers are not performance results (evidence kept locally, uncommitted).
