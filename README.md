@@ -17,7 +17,7 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.5.0 P0: baseline tag, Maven Wrapper, Flyway V1, k6 smoke | Claude Code | 2026-10-04 | `backend/mvnw`, `V1__baseline.sql`, `scripts/lib`, `scripts/db`, `loadtest/`; no application code changed. |
 | v0.6.0 P1: Java 21, Spring Boot 3.5.16, virtual threads | Claude Code | 2026-10-04 | Build/runtime upgrade (D1=boot-3.5.16); `scripts/p1/`; no application code changed. |
 | v0.7.1 P3: sync comparison mode + benchmark tooling | Claude Code | 2026-10-05 | `SECKILL_MODE=sync` (benchmark only, default stays async), `loadtest/bench/`, three-throughput summary; performance numbers pending (formal measurement by a person). |
-| v0.8.0 P4a: catalog-core module split + root Maven Wrapper | Claude Code | 2026-10-06 | Pure model/repository extraction, root multi-module build, Docker context update, and command-path cleanup; runtime behavior unchanged. |
+| v0.8.0 P4a: catalog-core module split + root Maven Wrapper | Codex (review fixes: Claude Code) | 2026-10-06 | Pure model/repository extraction, root multi-module build, Docker context update, and command-path cleanup; runtime behavior unchanged. |
 
 v0.4.2 (commit `5f5fae4`) is the pre-upgrade baseline (annotated tag `v0.4.2-baseline`, created in
 upgrade phase P0). P0 (v0.5.0) added the Maven Wrapper, Flyway-managed schema and the k6 load-test
@@ -77,8 +77,14 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 export JAVA_HOME=$(/usr/libexec/java_home -v 21)   # if needed
 # Needs MySQL + Redis + Kafka reachable on localhost (defaults: root/root, db auto-created).
 docker compose up -d mysql redis kafka              # from the repo root, if you have nothing local
-KAFKA_BOOTSTRAP=127.0.0.1:29092 ./mvnw spring-boot:run
+./mvnw -B -pl backend -am -DskipTests package       # builds catalog-core + backend in one reactor; no install needed
+KAFKA_BOOTSTRAP=127.0.0.1:29092 java -jar backend/target/ecommerce-0.0.1-SNAPSHOT.jar
 ```
+`./mvnw spring-boot:run` from the repo root does not work since P4a: the `ftsm-parent` aggregator has no
+main class, and `./mvnw -pl backend spring-boot:run` cannot resolve `catalog-core` unless it was installed.
+To use `spring-boot:run`, install first (and again after any `catalog-core` change):
+`./mvnw -B -pl backend -am -DskipTests install`, then `KAFKA_BOOTSTRAP=127.0.0.1:29092 ./mvnw -pl backend spring-boot:run`.
+
 - API: http://localhost:8080
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - Seeded admin: `admin@ukm.edu.my` / `Admin@123` (plus 3 sample B2C products)

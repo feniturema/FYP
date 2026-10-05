@@ -2,8 +2,8 @@
 .DS_Store
 *.log
 
-# build outputs
-backend/target/
+# build outputs (every Maven module, incl. catalog-core and the root aggregator)
+target/
 frontend/node_modules/
 frontend/dist/
 frontend/*.tsbuildinfo

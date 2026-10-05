@@ -50,7 +50,7 @@ the P3 spec scope, no version assigned. Details and evidence: `loadtest/results/
 
 ## [v0.8.0] — 2026-10-06 — P4a: catalog-core module split and root Maven Wrapper
 
-Authored by Claude Code per `docs/phases/P4a.md`. This is a structural refactor with no intended runtime behavior change.
+Authored by Codex per `docs/phases/P4a.md`; review fixes by Claude Code (see "Fixed in review"). This is a structural refactor with no intended runtime behavior change.
 
 ### Added
 - Root `pom.xml` (`ftsm-parent`) aggregating `catalog-core` and `backend`; `catalog-core` is a regular jar containing the catalog entities, repositories, and `RedisKeys`.
@@ -58,8 +58,20 @@ Authored by Claude Code per `docs/phases/P4a.md`. This is a structural refactor 
 
 ### Changed
 - `backend` now depends on `catalog-core`; the executable jar remains `backend/target/ecommerce-0.0.1-SNAPSHOT.jar`.
-- Docker Compose and benchmark/upgrade scripts build from the repository root with `./mvnw -pl backend -am`; legacy pre-P4a worktrees keep their backend-wrapper fallback.
+- Docker Compose and benchmark/upgrade scripts build from the repository root with `./mvnw -pl backend -am`; pre-P4a single-module refs (`v0.4.2-baseline` has no Wrapper at all) are built in their `backend/` directory with this checkout's root Wrapper.
 - README and HANDOFF commands now use the root wrapper.
+
+### Fixed in review (PR #7)
+- `scripts/p1/upgrade_path_check.sh`, `loadtest/bench/run_config.sh`: the pre-P4a branch called
+  `<worktree>/backend/mvnw`, which `v0.4.2-baseline` does not have; it now uses this checkout's root `mvnw`
+  (it reads `.mvn/` next to itself). Building `v0.4.2-baseline` through both scripts produces the Boot 3.3.5 jar.
+- Dev start: `./mvnw spring-boot:run` at the root fails (the aggregator has no main class, and
+  `-pl backend` alone cannot resolve an uninstalled `catalog-core`). README and HANDOFF now use
+  `./mvnw -B -pl backend -am -DskipTests package` + `java -jar backend/target/ecommerce-0.0.1-SNAPSHOT.jar`, with
+  `install` + `./mvnw -pl backend spring-boot:run` as the alternative.
+- `.gitignore`: `target/` for every module (only `backend/target/` was ignored, so `catalog-core/target` showed up).
+- Historical evidence restored to its recorded commands (`scripts/db/evidence/p1/effective-versions.txt`,
+  `scripts/p2/evidence/build.txt`, `loadtest/results/H1-cache-fix/CACHE-FIX.md`); they record what ran then.
 
 ### Verified
 - Root `./mvnw -B verify`: 70 tests, 0 failures, 0 errors, 0 skipped.

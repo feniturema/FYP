@@ -43,10 +43,12 @@ build_jar() {
   local ref=$1 name=$2 wt="$P1_TMP/wt-$2" log="$P1_TMP/build-$2.log" rc=0
   git -C "$REPO" worktree add --detach --force "$wt" "$ref" >/dev/null 2>&1 || { echo "worktree add $ref failed" >&2; return 1; }
   worktrees+=("$wt")
+  # Always this checkout's root Wrapper (it reads .mvn/ next to itself): v0.4.2-baseline has no Wrapper,
+  # and pre-P4a refs are single-module projects under backend/.
   if [[ -f "$wt/pom.xml" ]]; then
     (cd "$wt" && "$REPO/mvnw" -B -q -pl backend -am -DskipTests package) > "$log" 2>&1 || rc=$?
   else
-    (cd "$wt/backend" && "$wt/backend/mvnw" -B -q -DskipTests package) > "$log" 2>&1 || rc=$?
+    (cd "$wt/backend" && "$REPO/mvnw" -B -q -DskipTests package) > "$log" 2>&1 || rc=$?
   fi
   if (( rc != 0 )); then tail -n 80 "$log" >&2; return "$rc"; fi
   mkdir -p "$P1_TMP/jars"

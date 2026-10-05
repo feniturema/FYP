@@ -43,10 +43,11 @@ if [[ $cfg == A ]]; then
   if [[ ! -f $jar ]]; then
     rm -rf "$base"
     git -C "$BENCH_REPO" worktree add --detach --force "$base" v0.4.2-baseline >/dev/null
+    # This checkout's root Wrapper (reads .mvn/ next to itself); the baseline tag has no Wrapper of its own.
     if [[ -f "$base/pom.xml" ]]; then
       (cd "$base" && "$BENCH_REPO/mvnw" -B -q -pl backend -am -DskipTests package) > "$BENCH_TMP/build-A.log" 2>&1
     else
-      (cd "$base/backend" && "$base/backend/mvnw" -B -q -DskipTests package) > "$BENCH_TMP/build-A.log" 2>&1
+      (cd "$base/backend" && "$BENCH_REPO/mvnw" -B -q -DskipTests package) > "$BENCH_TMP/build-A.log" 2>&1
     fi || { echo "run_config: baseline build failed (see $BENCH_TMP/build-A.log)" >&2; exit 2; }
   fi
   unset SECKILL_MODE
