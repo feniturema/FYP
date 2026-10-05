@@ -21,6 +21,7 @@ A high-concurrency campus e-commerce platform for the FTSM / UKM community.
 | v0.7.1 P3: sync comparison mode + benchmark tooling | Claude Code | 2026-10-05 | `SECKILL_MODE=sync` (benchmark only, default stays async), `loadtest/bench/`, three-throughput summary; performance numbers pending (formal measurement by a person). |
 | v0.8.0 P4a: catalog-core module split + root Maven Wrapper | Codex (review fixes: Claude Code) | 2026-10-06 | Pure model/repository extraction, root multi-module build, Docker context update, and command-path cleanup; runtime behavior unchanged. |
 | v0.9.0 P6a: Testcontainers integration tests + GitHub Actions CI | Claude Code | 2026-10-06 | 11 `*IT` classes (Failsafe) on MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2, zero-test guard `scripts/ci/check_test_reports.py`, `.github/workflows/ci.yml`; no application code changed. |
+| v0.10.0 P4b: Spring AI assistant + MCP server + SSE | Claude Code (implementation) / Codex (handoff) | 2026-10-06 | Spring AI 1.1.8 with DeepSeek, five catalogue MCP tools plus local orders, resilient assistant streaming, bounded memory, Testcontainers coverage, Docker Compose and frontend SSE integration. |
 
 v0.4.2 (commit `5f5fae4`) is the pre-upgrade baseline (annotated tag `v0.4.2-baseline`, created in
 upgrade phase P0). P0 (v0.5.0) added the Maven Wrapper, Flyway-managed schema and the k6 load-test
@@ -39,9 +40,9 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
   purchase intent is written to a MySQL **outbox** before `202` is returned, relayed to **Kafka**
   and persisted **asynchronously** by an idempotent listener (one order per buyer per event,
   `sold_count < seckill_stock` as a second oversell guard). The event window comes from a 5 s cache.
-- **AI shopping assistant** — DeepSeek via an OpenAI-compatible `/chat/completions` API,
-  called through WebClient. Relevant products are injected into the prompt by simple
-  keyword matching (no tool / function calling yet).
+- **AI shopping assistant** — Spring AI 1.1.8 with DeepSeek (or another OpenAI-compatible provider),
+  MCP-backed catalogue search and local `my_orders` support. The authenticated assistant streams
+  token events over SSE and falls back to a deterministic no-key response.
 - **UKM-only auth** — `@ukm.edu.my` / `@siswa.ukm.edu.my` + **email OTP** + JWT.
 
 ## Tech stack
@@ -51,7 +52,7 @@ Use [`docs/agent-prompts/START-P0.md`](docs/agent-prompts/START-P0.md) to start 
 | Frontend | Vite 5, React 18, TypeScript, Tailwind CSS, Zustand, React Router 6, Axios |
 | Backend | Java 21 (virtual threads), Spring Boot 3.5.16, Spring Data JPA (Hibernate `ddl-auto: validate`), Flyway migrations, Spring Security + JWT (jjwt), Spring Mail, WebClient, springdoc-openapi |
 | Data | MySQL 8 (Flyway), Redis 8 (Lua + OTP TTL keys, AOF), Kafka 3.9 (KRaft, SecKill order topic + DLT) |
-| AI | DeepSeek (OpenAI-compatible; default `deepseek-v4-flash`) — any OpenAI-compatible provider via `LLM_BASE_URL` |
+| AI | Spring AI 1.1.8, DeepSeek (default `deepseek-v4-flash`), MCP client/server, Resilience4j 2.4.0; provider base URL via `DEEPSEEK_BASE_URL` |
 | Infra | Docker Compose + Nginx reverse proxy (frontend container) |
 
 ---
@@ -92,7 +93,8 @@ To use `spring-boot:run`, install first (and again after any `catalog-core` chan
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - Seeded admin: `admin@ukm.edu.my` / `Admin@123` (plus 3 sample B2C products)
 - **OTP codes** are printed to the backend console (mail is disabled by default).
-- To enable the assistant, export `LLM_API_KEY` (and optionally `LLM_MODEL`, `LLM_BASE_URL`).
+- To enable a real model, export `LLM_PROVIDER=deepseek` and `LLM_API_KEY` (and optionally `LLM_MODEL` and `DEEPSEEK_BASE_URL`).
+  With `LLM_PROVIDER=none` or no key, the assistant still starts and returns a deterministic configuration response.
 
 The in-memory `h2` profile was removed in v0.7.0 (H2 is test-only now): the outbox uses
 MySQL-specific SQL (`FOR UPDATE SKIP LOCKED`, `JSON`), so the app needs a real MySQL.
@@ -120,6 +122,9 @@ docker compose up -d --build
   (`mysql:8.0.46`, `redis:8.10.2` with AOF, `apache/kafka:3.9.2`). The backend waits for a
   healthy Kafka and creates the topics `seckill.orders` (6 partitions) and `seckill.orders.DLT`.
 - Uploaded images persist in the `uploads_data` volume.
+- For an existing v0.9.x deployment, add `LLM_PROVIDER=deepseek` and `MCP_DB_PASSWORD` to `.env`
+  before restarting. The read-only `ftsm_ro` account is created only when the MySQL volume is first
+  initialized; on an existing volume, run `docker compose exec mysql bash /docker-entrypoint-initdb.d/01-readonly-user.sh`.
 - For HTTPS on a real domain, terminate TLS at an outer Nginx/Caddy or add
   Certbot/Let's Encrypt in front of the `frontend` container.
 
@@ -216,25 +221,28 @@ under `UPLOAD_DIR` and returns `{"url": "/uploads/<uuid>.ext"}`; files are serve
 at `GET /uploads/**`.
 
 ### AI assistant
-`POST /api/chat` (authenticated) with `{"message": "..."}` returns `{"reply": "..."}`.
-`ChatService` adds up to 10 products whose name/category appears in the message (or the
-whole catalogue when it has ≤ 10 products) to the prompt, then calls the LLM. Without
-`LLM_API_KEY` it returns a "not configured" placeholder. The controller blocks on the
-WebClient `Mono` so the servlet security context is respected (see CHANGELOG v0.4.0).
+`POST /api/assistant/stream` (authenticated), with JSON `{"message":"...","conversationId":"optional-id"}`, returns an SSE stream with `token`,
+`done`, and `error` events. `POST /api/chat` remains as a compatibility endpoint and returns
+the aggregated assistant reply. The assistant uses Spring AI `ChatClient`, five catalogue tools
+served by the local MCP server (`search_products`, `search_secondhand_items`, `get_product_detail`,
+`get_stock`, `list_flash_sales`) and a local `my_orders` tool. Tool calls carry the authenticated
+user id through the request context. Conversation memory is bounded and process-local
+(maximum 1,000 conversations, two-hour idle expiry); no-key mode is deterministic and does
+not contact an external provider.
 
 ---
 
 ## Tests
 
-- **Unit / slice tests** (`./mvnw -B verify`): 70 tests in 14 classes, including the
+- **Unit / slice tests** (`./mvnw -B verify`): 107 tests in 21 classes, including the
   P2 pipeline (`SeckillServiceBuyTest`, `OutboxPublisherTest`, `SeckillOrderListenerTest`,
   `KafkaConfigTest`, `SeckillReconcilerTest`, `SeckillEventCacheTest`, `SeckillControllerTest`) and
   H2 transaction tests (`SeckillOrderWriterH2Test`, `OrderServiceRollbackTest`). No broker needed.
-- **Integration tests** (`*IT`, run by Failsafe in the same `./mvnw -B verify`; since P6a): 11 classes /
-  12 cases on real MySQL 8.0.46, Kafka 3.9.2 and Redis 8.10.2 containers (Testcontainers 1.21.4), covering
-  the SecKill race, duplicate buys, listener stop/restart, Kafka outage, offset replay, outbox
-  compensation, DLT publish failure, normal-checkout races, reconciliation and the Flyway history. Needs
-  Docker; see "Running integration tests".
+- **Integration tests** (`*IT`, run by Failsafe in the same `./mvnw -B verify`; since P6a/P4b): 16 classes /
+  30 cases on real MySQL 8.0.46, Kafka 3.9.2 and Redis 8.10.2 containers (Testcontainers 1.21.4), covering
+  the SecKill pipeline, normal-checkout races, reconciliation, Flyway history, assistant startup/configuration,
+  authenticated SSE security, resilience fallbacks, MCP tool flow and the MCP server. Needs Docker; see
+  "Running integration tests".
 - **P2 acceptance** (`scripts/p2/acceptance.sh`): e2e, backend crash, Kafka pause, offset replay,
   unconfirmable outbox write, normal-checkout race, reconciliation and a k6 smoke, all inside the
   compose project `ftsm-p2-acc`; evidence in `scripts/p2/evidence/`.
@@ -369,19 +377,26 @@ Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
 - The scheduled tasks (warm-up, relay, reconciler, janitor) run on every instance — run a
   **single backend replica** until they are guarded by a lock (P6b).
 - Uploads live on local disk (one volume), so multiple replicas would not share images.
+- Assistant memory and tool-call records are process-local and bounded; use a shared store before running multiple backend replicas.
+- Real-model assistant acceptance (P4b E1–E2) requires a valid `LLM_API_KEY`; the committed tests use the deterministic no-key/fake-model path. The optional MCP Inspector screenshot (E3) is still pending.
+- The local machine used for this verification had Node 24.12.0; CI pins Node 20.20.2.
 
 ---
 
 ## Project layout
 ```
-backend/             Spring Boot API (controllers, services, security, Redis Lua, outbox relay + Kafka listener)
+backend/             Spring Boot API (controllers, services, security, Redis Lua, outbox relay + Kafka listener, assistant)
+mcp-server/          Spring AI MCP server exposing the catalogue tools
 frontend/            Vite + React SPA (features: auth, marketplace, seckill, chatbot, admin; pages: cart, orders)
 scripts/e2e_test.py  end-to-end + SecKill concurrency verification
 scripts/lib/         shared shell helpers (wait.sh: bounded readiness waits)
 scripts/db/          temporary MySQL/Redis helpers, V1 export, schema fingerprint/compare
 scripts/p2/          P2 acceptance, normal-checkout race, cutover precheck, evidence
+scripts/p4b/         P4b acceptance and evidence helpers
 scripts/tools/       pinned tool installers (k6)
 loadtest/            k6 scenarios, run/drain/verify/summarize tooling, results
+eval/                assistant evaluation prompts and expected behaviours
+mysql/               Compose bootstrap SQL for the read-only assistant account
 docs/                upgrade plan, master spec, per-phase packages (phases/) and prompts (agent-prompts/)
 docker-compose.yml   full stack for deployment
 .env.example         secrets template
@@ -393,7 +408,8 @@ All secrets are environment-driven (see `.env.example` and `backend/src/main/res
 `KAFKA_BOOTSTRAP` (default `localhost:9092`; `kafka:9092` inside compose, `127.0.0.1:29092` from the
 host), `KAFKA_REPLICAS` (topic replication factor, default `1`),
 `JWT_SECRET`, `JWT_EXPIRY_MS`, `CORS_ALLOWED_ORIGINS`,
-`MAIL_ENABLED`/`SMTP_*`/`MAIL_FROM`, `LLM_API_KEY`/`LLM_BASE_URL`/`LLM_MODEL`,
+`MAIL_ENABLED`/`SMTP_*`/`MAIL_FROM`, `LLM_PROVIDER`/`LLM_API_KEY`/`DEEPSEEK_BASE_URL`/`LLM_MODEL`,
+`MCP_SERVER_URL`/`MCP_CLIENT_ENABLED`/`MCP_DB_USERNAME`/`MCP_DB_PASSWORD`/`MCP_HOST_PORT`,
 `SEED_ENABLED`/`SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`, `UPLOAD_DIR`, `SERVER_PORT`,
 `VIRTUAL_THREADS` (default `true`: Tomcat requests, `@Scheduled` and `@Async` run on Java 21
 virtual threads; `false` restores platform threads), `DB_POOL_SIZE` (Hikari maximum pool size,

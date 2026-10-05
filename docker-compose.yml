@@ -11,10 +11,13 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
       MYSQL_DATABASE: ${DB_NAME:-ftsm_ecommerce}
+      # Read-only account for mcp-server, created by mysql/init/01-readonly-user.sh on a NEW data volume only.
+      MCP_DB_PASSWORD: ${MCP_DB_PASSWORD}
     ports:
       - "${MYSQL_HOST_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_PASSWORD:-root}"]
       interval: 10s
@@ -73,7 +76,7 @@ services:
       kafka:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       DB_URL: jdbc:mysql://mysql:3306/${DB_NAME:-ftsm_ecommerce}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
       DB_USERNAME: root
       DB_PASSWORD: ${DB_PASSWORD:-root}
@@ -90,9 +93,14 @@ services:
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@ftsm.ukm.edu.my}
+      # Assistant: LLM_PROVIDER defaults to none (assistant off); set deepseek plus LLM_API_KEY to enable it.
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}
       LLM_API_KEY: ${LLM_API_KEY:-}
-      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.deepseek.com/v1}
+      DEEPSEEK_BASE_URL: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       LLM_MODEL: ${LLM_MODEL:-deepseek-v4-flash}
+      MCP_SERVER_URL: http://mcp-server:8081
+      MCP_CLIENT_ENABLED: ${MCP_CLIENT_ENABLED:-true}
+      APP_ASSISTANT_FAKEMODEL: ${APP_ASSISTANT_FAKEMODEL:-false}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@ukm.edu.my}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin@123}
       UPLOAD_DIR: /app/uploads
@@ -103,6 +111,37 @@ services:
       - uploads_data:/app/uploads
     ports:
       - "${BACKEND_HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  # Read-only catalogue tools over MCP (streamable HTTP at /mcp) for the assistant. Starts after the backend is
+  # healthy because the backend's Flyway owns the schema and mcp-server only validates it (ddl-auto: validate).
+  mcp-server:
+    build:
+      context: .
+      dockerfile: mcp-server/Dockerfile
+    restart: on-failure
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:mysql://mysql:3306/${DB_NAME:-ftsm_ecommerce}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+      MCP_DB_USERNAME: ftsm_ro
+      MCP_DB_PASSWORD: ${MCP_DB_PASSWORD}
+      REDIS_HOST: redis
+    ports:
+      # Local only: MCP Inspector and scripts/p4b/mcp_probe.py. Never expose it publicly.
+      - "127.0.0.1:${MCP_HOST_PORT:-18082}:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
 
   frontend:
     build: ./frontend

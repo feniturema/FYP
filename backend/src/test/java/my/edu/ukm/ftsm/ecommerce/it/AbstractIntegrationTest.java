@@ -123,6 +123,25 @@ public abstract class AbstractIntegrationTest {
         }
     }
 
+    /** Authenticated JSON POST (P4b assistant ITs); {@code token} may be null. Added in P4b; existing fixtures unchanged. */
+    protected HttpResponse<String> postJson(String path, String token, String json) {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+                .timeout(Duration.ofSeconds(60))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json));
+        if (token != null) {
+            b.header("Authorization", "Bearer " + token);
+        }
+        try {
+            return http.send(b.build(), HttpResponse.BodyHandlers.ofString());
+        } catch (IOException e) {
+            throw new IllegalStateException("POST " + path + " failed", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("interrupted", e);
+        }
+    }
+
     /** A real STUDENT row with this id (the order-race ITs need users in the table). The hash is a placeholder. */
     protected void createUser(long id) {
         jdbc.update("INSERT INTO users (id, created_at, email, email_verified, name, password_hash, role) "

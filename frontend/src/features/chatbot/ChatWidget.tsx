@@ -1,6 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { chatApi } from '../../services/api';
 import type { ChatMessage } from '../../types';
+
+const GENERIC_ERROR = 'Sorry, something went wrong. Please try again.';
+// Transport-level failures from streamAssistant; anything else is the server's own error text.
+const TRANSPORT_ERRORS = new Set(['connection closed', 'network error']);
+
+/** A conversation id matching the backend pattern ^[A-Za-z0-9-]{1,64}$. randomUUID needs a secure context. */
+function newConversationId(): string {
+  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -9,19 +20,33 @@ export default function ChatWidget() {
   ]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
+  const [conversationId] = useState(newConversationId);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  // Only the last bubble streams: sending is disabled until the current answer finishes.
+  const updateLast = (fn: (m: ChatMessage) => ChatMessage) =>
+    setMessages((ms) => [...ms.slice(0, -1), fn(ms[ms.length - 1])]);
 
   const send = async () => {
     const text = input.trim();
     if (!text || busy) return;
     setInput('');
-    setMessages((m) => [...m, { role: 'user', text }]);
+    setMessages((m) => [...m, { role: 'user', text }, { role: 'assistant', text: '', streaming: true }]);
     setBusy(true);
-    try {
-      const res = await chatApi.send(text);
-      setMessages((m) => [...m, { role: 'assistant', text: res.reply }]);
-    } catch {
-      setMessages((m) => [...m, { role: 'assistant', text: 'Sorry, something went wrong.' }]);
-    } finally {
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    await chatApi.stream(text, conversationId, {
+      onToken: (t) => updateLast((m) => ({ ...m, text: m.text + t })),
+      onDone: () => updateLast((m) => ({ ...m, streaming: false })),
+      onError: (msg) => {
+        const shown = TRANSPORT_ERRORS.has(msg) || msg.startsWith('HTTP ') ? GENERIC_ERROR : msg;
+        updateLast((m) => ({ ...m, text: m.text ? `${m.text}\n\n${shown}` : shown, streaming: false }));
+      },
+    }, ctrl.signal);
+    if (!ctrl.signal.aborted) {
+      updateLast((m) => ({ ...m, streaming: false }));
       setBusy(false);
     }
   };
@@ -45,7 +70,7 @@ export default function ChatWidget() {
                 <span className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm ${
                   m.role === 'user' ? 'bg-ukm-700 text-white' : 'bg-gray-100 text-gray-800'
                 }`}>
-                  {m.text}
+                  {m.text || (m.streaming ? '…' : '')}
                 </span>
               </div>
             ))}

@@ -94,4 +94,6 @@ export interface ReviewSummary {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
+  /** true while the assistant bubble is still receiving streamed tokens */
+  streaming?: boolean;
 }

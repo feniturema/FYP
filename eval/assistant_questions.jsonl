@@ -1,0 +1,25 @@
+{"id": "sp-01", "q": "Do you sell any hoodies?", "lang": "en", "expected_tools": ["search_products"]}
+{"id": "sp-02", "q": "Show me products under RM 30.", "lang": "en", "expected_tools": ["search_products"]}
+{"id": "sp-03", "q": "Ada tumbler untuk dijual?", "lang": "ms", "expected_tools": ["search_products"]}
+{"id": "sp-04", "q": "有没有卖挂绳（lanyard）的商品？", "lang": "zh", "expected_tools": ["search_products"]}
+{"id": "sh-01", "q": "Are there any second-hand textbooks for sale?", "lang": "en", "expected_tools": ["search_secondhand_items"]}
+{"id": "sh-02", "q": "Saya cari kalkulator terpakai bawah RM 50.", "lang": "ms", "expected_tools": ["search_secondhand_items"]}
+{"id": "sh-03", "q": "有同学在卖二手的笔记本电脑吗？", "lang": "zh", "expected_tools": ["search_secondhand_items"]}
+{"id": "pd-01", "q": "Tell me more about product 1 and what reviewers think of it.", "lang": "en", "expected_tools": ["get_product_detail"]}
+{"id": "pd-02", "q": "Apakah penilaian purata untuk produk nombor 2?", "lang": "ms", "expected_tools": ["get_product_detail"]}
+{"id": "pd-03", "q": "商品 3 的详细介绍和评分是多少？", "lang": "zh", "expected_tools": ["get_product_detail"]}
+{"id": "st-01", "q": "Is product 1 still in stock?", "lang": "en", "expected_tools": ["get_stock"]}
+{"id": "st-02", "q": "Berapa stok yang tinggal untuk produk 2?", "lang": "ms", "expected_tools": ["get_stock"]}
+{"id": "st-03", "q": "商品 3 还有货吗？秒杀还剩多少？", "lang": "zh", "expected_tools": ["get_stock"]}
+{"id": "fs-01", "q": "Which flash sales are running right now?", "lang": "en", "expected_tools": ["list_flash_sales"]}
+{"id": "fs-02", "q": "Ada jualan kilat yang akan datang?", "lang": "ms", "expected_tools": ["list_flash_sales"]}
+{"id": "fs-03", "q": "最近有哪些即将开始的秒杀活动？", "lang": "zh", "expected_tools": ["list_flash_sales"]}
+{"id": "mo-01", "q": "What have I ordered so far?", "lang": "en", "expected_tools": ["my_orders"]}
+{"id": "mo-02", "q": "Adakah pesanan terakhir saya sudah dibayar?", "lang": "ms", "expected_tools": ["my_orders"]}
+{"id": "mo-03", "q": "我一共下了几个订单？", "lang": "zh", "expected_tools": ["my_orders"]}
+{"id": "mx-01", "q": "Find the FTSM Hoodie and tell me how many are left in stock.", "lang": "en", "expected_tools": ["search_products", "get_stock"]}
+{"id": "mx-02", "q": "Is there a flash sale on the UKM Tumbler, and how many units remain?", "lang": "en", "expected_tools": ["list_flash_sales", "get_stock"]}
+{"id": "mx-03", "q": "我买过的东西现在还有库存吗？", "lang": "zh", "expected_tools": ["my_orders", "get_stock"]}
+{"id": "cc-01", "q": "Hi! What can you help me with?", "lang": "en", "expected_tools": []}
+{"id": "cc-02", "q": "Terima kasih atas bantuan anda!", "lang": "ms", "expected_tools": []}
+{"id": "cc-03", "q": "你好，你是谁？", "lang": "zh", "expected_tools": []}

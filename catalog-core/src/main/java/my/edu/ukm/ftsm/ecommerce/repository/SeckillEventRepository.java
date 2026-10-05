@@ -11,6 +11,8 @@ import java.util.List;
 
 public interface SeckillEventRepository extends JpaRepository<SeckillEvent, Long> {
     List<SeckillEvent> findByStatus(SeckillEvent.Status status);
+
+    List<SeckillEvent> findByProductIdAndStatus(Long productId, SeckillEvent.Status status);
     List<SeckillEvent> findByStockWarmedFalseAndStartTimeBefore(Instant time);
     List<SeckillEvent> findByStatusAndReconciledFalse(SeckillEvent.Status status);
 

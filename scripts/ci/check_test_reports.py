@@ -10,6 +10,9 @@ Reads the JUnit XML reports of every module (<root>/*/target/{failsafe,surefire}
   - no failsafe report at all (listed or not) has a failure, an error or a skipped test;
   - the Surefire total is >= "surefire_min_total", with failures = errors = skipped = 0.
 A missing report, a class that ran zero tests, or a skipped test (@Disabled, assumeTrue) is a failure.
+"tests" is the number of <testcase> elements: for @Nested classes Failsafe writes every nested test case into the
+outer class's report but its suite "tests" attribute counts only one nested class (P4b AssistantStartupIT).
+failures / errors / skipped take the larger of the suite attribute and the per-testcase count.
 Prints a table: class, tests, failures, errors, skipped. Standard library only.
 """
 import argparse
@@ -30,8 +33,10 @@ def read_reports(root, kind):
         name = suite.get("name") or os.path.basename(path)[5:-4]
         simple = name.rsplit(".", 1)[-1]
         row = out.setdefault(simple, dict.fromkeys(KEYS, 0))
-        for k in KEYS:
-            row[k] += int(suite.get(k, 0))
+        cases = suite.findall("testcase")
+        row["tests"] += len(cases)
+        for k, tag in (("failures", "failure"), ("errors", "error"), ("skipped", "skipped")):
+            row[k] += max(int(suite.get(k, 0)), sum(1 for c in cases if c.find(tag) is not None))
     return out
 
 

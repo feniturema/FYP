@@ -8,8 +8,10 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -20,6 +22,8 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtils jwtUtils;
+    private final RequestAttributeSecurityContextRepository securityContextRepository =
+            new RequestAttributeSecurityContextRepository();
 
     public JwtAuthFilter(JwtUtils jwtUtils) {
         this.jwtUtils = jwtUtils;
@@ -43,7 +47,13 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         principal, null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + role)));
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
+                // Save the context as a request attribute too: the async dispatch of a streaming (SSE / Flux)
+                // response runs the filter chain again without this filter, and must still see the
+                // authentication (docs/phases/P4b.md §6.7; reproduced by AssistantStreamSecurityIT case 1).
+                SecurityContext context = SecurityContextHolder.createEmptyContext();
+                context.setAuthentication(auth);
+                SecurityContextHolder.setContext(context);
+                securityContextRepository.saveContext(context, request, response);
             } catch (Exception ex) {
                 // Invalid/expired token -> leave unauthenticated; protected routes will 401/403.
                 SecurityContextHolder.clearContext();
