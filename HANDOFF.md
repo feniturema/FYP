@@ -317,8 +317,9 @@ Write at least a happy-path test where noted.
   Per-phase execution packages: `docs/phases/<phase>.md`; per-phase agent prompts: `docs/agent-prompts/<phase>.md`.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
   P0 (v0.5.0), P1 (v0.6.0), P2 (v0.7.0) and P3 (v0.7.1: sync comparison mode, benchmark tooling, smoke)
-  are implemented; P4a starts only after the P3 PR is merged. The event-cache pinning fix
-  (CHANGELOG [Unreleased]) was found during the H1 attempt and is outside the P3 spec scope.
+  are implemented; P3 was merged via PR #5 on 2026-10-05, and P4a has not been started. The event-cache
+  pinning fix (CHANGELOG [Unreleased]) was found during the H1 attempt after that merge, is outside the P3
+  spec scope and goes to `main` in its own PR.
   An H1 attempt on the dev MacBook (2026-10-05) is incomplete and diagnostic only: no config had a valid
   step at RATE ≥ 1000, and its numbers are not performance results (evidence kept locally, uncommitted).
   P3 H1 (formal A/B/C measurement on a
