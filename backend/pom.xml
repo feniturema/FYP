@@ -5,10 +5,10 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.5.16</version>
-        <relativePath/>
+        <groupId>my.edu.ukm.ftsm</groupId>
+        <artifactId>ftsm-parent</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <groupId>my.edu.ukm.ftsm</groupId>
@@ -18,11 +18,15 @@
     <description>FTSM campus e-commerce platform (C2C + B2C SecKill)</description>
 
     <properties>
-        <java.version>21</java.version>
         <jjwt.version>0.12.6</jjwt.version>
     </properties>
 
     <dependencies>
+        <dependency>
+            <groupId>my.edu.ukm.ftsm</groupId>
+            <artifactId>catalog-core</artifactId>
+        </dependency>
+
         <!-- Web (Tomcat, REST) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

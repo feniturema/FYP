@@ -1,5 +1,5 @@
 # P1 effective dependency versions (docs/phases/P1.md §6.1)
-# generated 2026-10-04T07:25:25Z on commit 053828d; cd backend && ./mvnw -B -q help:effective-pom / dependency:list -DincludeScope=runtime
+# generated 2026-10-04T07:25:25Z on commit 053828d; ./mvnw -B -q -pl backend -am help:effective-pom / dependency:list -DincludeScope=runtime
 
 ## check 1: grep -E '<5 pinned artifacts>' deps.txt | wc -l   (expected 5)
 com.mysql:mysql-connector-j:jar:9.7.0:runtime

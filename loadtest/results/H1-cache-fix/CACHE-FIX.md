@@ -71,7 +71,7 @@ R3、R4 的 JFR 都没有 pinning 或监视器事件。这只作为辅助证据�
 | `afterShutdownNoNewLoadIsStarted` | 关闭后不再启动新的加载 |
 | `hitDoesNotQueryTheRepositoryAgain`、`windowIsInclusiveAtBothEnds` | 原有测试 |
 
-**全量验证：** `cd backend && ./mvnw -B verify`：**70 个测试**（原 63 + 新 7），0 失败，BUILD SUCCESS。审查修改前见 `unit/verify.txt`，最终结果见 `unit/final-verify.txt`。Mockito 只打印了 self-attach 警告，没有影响测试，所以没有使用 `-javaagent`，也没有改 pom.xml。
+**全量验证：** `./mvnw -B verify`：**70 个测试**（原 63 + 新 7），0 失败，BUILD SUCCESS。审查修改前见 `unit/verify.txt`，最终结果见 `unit/final-verify.txt`。Mockito 只打印了 self-attach 警告，没有影响测试，所以没有使用 `-javaagent`，也没有改 pom.xml。
 
 **修复后压测**（诊断用，不是正式 H1；采集器、JVM 参数、`trackAllThreads`、运行时 JFR 与 H1-stall-debug 相同）：
 

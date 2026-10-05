@@ -1,7 +1,7 @@
 A1 on commit 49b1e04fa56ef9d00e2c1fe55cbe01aece5abb9f (clean tree: yes) at 2026-10-04T10:05:06Z
 JDK: java version "21.0.1" 2023-10-17 LTS; Maven: Apache Maven 3.9.11 (3e54c93a704957b63ee3494413a2b544fd3d825b); Node v24.12.0, npm 11.6.2
 
-$ cd backend && ./mvnw -B clean verify   -> rc=0
+$ ./mvnw -B verify   -> rc=0
 Compiling 68 source files with javac [debug parameters release 21] to target/classes
 Compiling 13 source files with javac [debug parameters release 21] to target/test-classes
 Tests run: 1, Failures: 0, Errors: 0, Skipped: 0 my.edu.ukm.ftsm.ecommerce.repository.ReviewRepositoryTest

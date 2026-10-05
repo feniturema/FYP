@@ -43,7 +43,11 @@ build_jar() {
   local ref=$1 name=$2 wt="$P1_TMP/wt-$2" log="$P1_TMP/build-$2.log" rc=0
   git -C "$REPO" worktree add --detach --force "$wt" "$ref" >/dev/null 2>&1 || { echo "worktree add $ref failed" >&2; return 1; }
   worktrees+=("$wt")
-  (cd "$wt/backend" && "$REPO/backend/mvnw" -B -q -DskipTests package) > "$log" 2>&1 || rc=$?
+  if [[ -f "$wt/pom.xml" ]]; then
+    (cd "$wt" && "$REPO/mvnw" -B -q -pl backend -am -DskipTests package) > "$log" 2>&1 || rc=$?
+  else
+    (cd "$wt/backend" && "$wt/backend/mvnw" -B -q -DskipTests package) > "$log" 2>&1 || rc=$?
+  fi
   if (( rc != 0 )); then tail -n 80 "$log" >&2; return "$rc"; fi
   mkdir -p "$P1_TMP/jars"
   cp "$wt/backend/target/ecommerce-0.0.1-SNAPSHOT.jar" "$P1_TMP/jars/$name.jar"
@@ -75,7 +79,7 @@ main() {
     p1_jar=$P1_JAR
   else
     step "build P1 jar (working tree)"
-    (cd "$REPO/backend" && ./mvnw -B -q -DskipTests clean package) > "$P1_TMP/build-p1.log" 2>&1 \
+    (cd "$REPO" && ./mvnw -B -q -pl backend -am -DskipTests clean package) > "$P1_TMP/build-p1.log" 2>&1 \
       || { local rc=$?; tail -n 80 "$P1_TMP/build-p1.log" >&2; return "$rc"; }
     p1_jar=$REPO/backend/target/ecommerce-0.0.1-SNAPSHOT.jar
   fi

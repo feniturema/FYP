@@ -48,6 +48,23 @@ the P3 spec scope, no version assigned. Details and evidence: `loadtest/results/
   30 s timeout — match it). Also unexplained: a 52 s delay of Hikari's platform housekeeper thread and the
   JVM RSS drop during the stall (the host had 3.1 GB of 4 GB swap in use later that day).
 
+## [v0.8.0] — 2026-10-06 — P4a: catalog-core module split and root Maven Wrapper
+
+Authored by Claude Code per `docs/phases/P4a.md`. This is a structural refactor with no intended runtime behavior change.
+
+### Added
+- Root `pom.xml` (`ftsm-parent`) aggregating `catalog-core` and `backend`; `catalog-core` is a regular jar containing the catalog entities, repositories, and `RedisKeys`.
+- Root Maven Wrapper (`mvnw`, `mvnw.cmd`, `.mvn/wrapper/`) and root Docker build context.
+
+### Changed
+- `backend` now depends on `catalog-core`; the executable jar remains `backend/target/ecommerce-0.0.1-SNAPSHOT.jar`.
+- Docker Compose and benchmark/upgrade scripts build from the repository root with `./mvnw -pl backend -am`; legacy pre-P4a worktrees keep their backend-wrapper fallback.
+- README and HANDOFF commands now use the root wrapper.
+
+### Verified
+- Root `./mvnw -B verify`: 70 tests, 0 failures, 0 errors, 0 skipped.
+- `catalog-core` dependency scan contains no backend or Spring Web dependency.
+
 ## [v0.7.1] — 2026-10-05 — P3: sync comparison mode and benchmark tooling
 
 Authored by Claude Code per `docs/phases/P3.md`. Adds a synchronous SecKill mode used **only** as a
