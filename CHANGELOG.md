@@ -5,6 +5,17 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [Unreleased] — 2026-10-06 — docs: acceptance host ports within 1-65535
+
+### Fixed
+- `docs/CHANGE_SPEC.md` §0.11 and the P5a / P5b / P6b phase docs gave 14 acceptance host ports above 65535.
+  P5a now lists the ports its acceptance actually used (63379 / 63092 / 63080 / 63081, mcp-server 63082);
+  P5b is P5a + 100 (Redis 63479, Kafka 63192, backend 63180, mcp-server 63182); P6b moves to 64xxx
+  (MySQL 64306, Redis 64379, Kafka 64092, backend 64080, LGTM 64000 / 64318). Acceptance commands in
+  `docs/phases/P5a.md`, `P5b.md` and `P6b.md` use the new ports. Docs only; no code, migration or test changes.
+
+---
+
 ## [v0.11.0] — 2026-10-06 — P5a: FULLTEXT search, `/api/search`, demo catalogue, retrieval eval harness
 
 Authored by Claude Code per `docs/phases/P5a.md`. Keyword mode only; vector / RRF / rerank are P5b.

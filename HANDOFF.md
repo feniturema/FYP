@@ -333,9 +333,10 @@ plane. `POST /api/assistant/stream` accepts a JSON message and optional conversa
   both 2026-10-05) and P4a (v0.8.0, PR #7, 2026-10-05). P6a (v0.9.0: Testcontainers ITs + CI) was
   merged via PR #8, P4b (v0.10.0) via PR #9. P5a (v0.11.0: FULLTEXT search, `/api/search`, demo catalogue,
   eval harness) is implemented on `p5a-search`, PR open, not merged. After it merges a person labels
-  `eval/queries.jsonl` (commit `eval: label queries`); P5b is blocked until then. The port table in
-  `docs/CHANGE_SPEC.md` §0.11 gives P5a/P5b/P6b host ports above 65535; P5a used 63306/63379/63092/63080/63081
-  (maintainer decision) and the table still needs a docs fix before P5b/P6b.
+  `eval/queries.jsonl` (commit `eval: label queries`); P5b is blocked until then. Acceptance host ports are in
+  `docs/CHANGE_SPEC.md` §0.11, all within 1-65535 since the 2026-10-06 docs fix: P5a 63306/63379/63092/63080/63081
+  (mcp-server 63082), P5b 63406/63479/63192/63180 (mcp-server 63182, Ollama 61434), P6b 64306/64379/64092/64080
+  (LGTM 64000/64318).
   An H1 attempt on the dev MacBook (2026-10-05) is incomplete and diagnostic only: no config had a valid
   step at RATE ≥ 1000, and its numbers are not performance results (evidence kept locally, uncommitted).
   P3 H1 (formal A/B/C measurement on a
