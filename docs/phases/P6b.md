@@ -34,7 +34,7 @@
 | 已合并阶段 | P6a、P4b、P5a；`flyway_schema_history` 中最高版本为 3 | 停止（否则新增的 V4 会排在一个尚未执行的 V3 之前，`out-of-order=false` 时 Flyway 会拒绝） |
 | 工具 | Docker；kind v0.33.0（`kind-linux-amd64` 的 sha256 为 `aee6151561422756b764a4ae28e7f44cda5af5a9eead3cc9985112b1de8d8e0d`）；kubectl v1.37.1（sha256 为 `65691ff77eb6fa44c908b77a1082c9f092c3b9733b5cefabec0d1104890e21a8`）；kubeconform v0.8.0（`linux-amd64.tar.gz` 的 sha256 为 `9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883`）**[源码：Release 文件]** | 不能创建 kind 集群时：清单的静态校验（A9）照常执行，真实集群的验收（A10–A14）标“未执行”，PR 保持 draft |
 | 资源 | kind 集群：≥ 4 CPU、≥ 8 GB 内存可分配 | HPA 扩容验收可能无法完成（§9 A14 的判定规则） |
-| 端口 | 宿主机 8088（kind NodePort 映射到前端）、3300（Grafana）；`ftsm-p6b-acc` 项目：MySQL 73306、Redis 76379、Kafka 79092、后端 78080、LGTM 73000 / 74318 | 停止 |
+| 端口 | 宿主机 8088（kind NodePort 映射到前端）、3300（Grafana）；`ftsm-p6b-acc` 项目：MySQL 64306、Redis 64379、Kafka 64092、后端 64080、LGTM 64000（Grafana，`GRAFANA_HOST_PORT`）/ 64318（OTLP HTTP，`OTLP_HTTP_HOST_PORT`）（见 CHANGE_SPEC §0.11） | 停止 |
 | 凭据 | 不需要（镜像在本地构建，用 `kind load` 导入）；使用 GHCR 镜像时需要人工创建 pull secret（可选） | — |
 
 ## 3. 阶段输入与输出
@@ -341,9 +341,9 @@ wait_http http://127.0.0.1:8088/api/products 120
 | A1 | 构建、测试、报告检查 | Docker | `$REPO` | `./mvnw -B verify && python3 scripts/ci/check_test_reports.py --expect scripts/ci/expected-tests.json` | 全部通过 | reports | 自动 | 是 |
 | A2 | 迁移 | — | `$REPO` | `MigrationIT` 的期望版本改为 `[1,2,3,4,5]`（以及可能存在的 1.1） | 通过 | reports | 自动 | 是 |
 | A3 | 锁表 | — | `$REPO` | `grep -c '@SchedulerLock' $(grep -rl '@Scheduled' backend/src/main/java)`；同时确认 `OutboxRelay.java` 中**没有** `@SchedulerLock` | 每个文件的计数与 §6.1 的表一致 | PR | 自动 | 是 |
-| A4 | compose 中的探针 | compose | `$REPO` | `curl -fsS 127.0.0.1:78080/actuator/health/readiness` | 返回 200，`components` 中有 db 和 redis，没有 kafka | `scripts/p6b/evidence/a4.json` | 自动 | 是 |
+| A4 | compose 中的探针 | compose | `$REPO` | `curl -fsS 127.0.0.1:64080/actuator/health/readiness` | 返回 200，`components` 中有 db 和 redis，没有 kafka | `scripts/p6b/evidence/a4.json` | 自动 | 是 |
 | A5 | agent 已就位 | — | `$REPO` | `docker run --rm --entrypoint sh ftsm-backend:p6b -c 'unzip -p /otel/opentelemetry-javaagent.jar META-INF/MANIFEST.MF \| grep Implementation-Version'` | 输出中有 `2.32.0` | PR | 自动 | 是 |
-| A6 | 跨 Kafka 的 trace | compose，lgtm 已启动 | `$REPO` | 下单 1 笔，等 30 s，然后执行 `python3 scripts/p6b/check_trace.py --grafana http://127.0.0.1:73000` | 退出码 0（找到包含 5 类 span 的 trace） | `…/a6.json` | 自动 | 是 |
+| A6 | 跨 Kafka 的 trace | compose，lgtm 已启动 | `$REPO` | 下单 1 笔，等 30 s，然后执行 `python3 scripts/p6b/check_trace.py --grafana http://127.0.0.1:64000` | 退出码 0（找到包含 5 类 span 的 trace） | `…/a6.json` | 自动 | 是 |
 | A7 | 指标与 dashboard | A6 | `$REPO` | `scripts/p6b/import_dashboard.sh …`，然后 `python3 scripts/p6b/check_metrics.py --grafana …` | 两者都成功 | `…/a7.txt` | 自动 | 是 |
 | A8 | compose 下的 e2e 不回归 | A4 | `$REPO` | 按 P4a §7 的日志跟随方式执行 e2e | 8/8 | `…/a8.txt` | 自动 | 是 |
 | A9 | 清单的静态校验 | — | `$REPO` | `scripts/p6b/validate_manifests.sh` | 退出码 0，没有 invalid 资源 | `…/a9.txt` | 自动 | 是 |

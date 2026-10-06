@@ -28,7 +28,7 @@
 | 凭据或运行环境 | `openai`：人以环境变量形式提供 `OPENAI_API_KEY`。`ollama`：能运行 `ollama/ollama:0.35.1`，并且能拉取 `bge-m3`（约 1.2 GB） | — | 可以完成代码和全部离线测试（使用 §8 中的确定性 embedding），但 A8 / A9（正式跑分）标“未执行”，PR 保持 draft |
 | 重排需要的 key | `LLM_PROVIDER=deepseek` 加 `LLM_API_KEY`（人提供） | — | A9 中 `rrf_rerank` 这一行标“未执行”；其余三种模式照常跑 |
 | 工具 | Docker、JDK 21、Python 3.10 | — | IT 标“未执行”，PR 保持 draft |
-| 端口 | `ftsm-p5b-acc` 项目：MySQL 63406、Redis 66479、Kafka 69192、后端 68180、mcp-server 68182、Ollama 61434 | — | 停止 |
+| 端口 | `ftsm-p5b-acc` 项目：MySQL 63406、Redis 63479、Kafka 63192、后端 63180、mcp-server 63182（仅 127.0.0.1）、Ollama 61434（见 CHANGE_SPEC §0.11） | — | 停止 |
 
 **D2 决定之前**，agent 可以在本地分支上编写与提供方无关的代码和测试（§5 的 1–7 步），但不得：
 
@@ -303,11 +303,11 @@ docker compose … exec ollama ollama pull bge-m3
 | A2 | 评测集未被修改 | — | `$REPO` | `git diff --quiet origin/main...HEAD -- eval/queries.jsonl` | 退出码 0 | PR | 自动 | 是 |
 | A3 | 没有拼接过滤表达式 | — | `$REPO` | `grep -rnE 'filterExpression\("' catalog-core backend mcp-server` | 无输出 | PR | 自动 | 是 |
 | A4 | 没有自动配置的向量 starter | — | `$REPO` | `grep -rn 'spring-ai-starter-vector-store' */pom.xml` | 无输出 | PR | 自动 | 是 |
-| A5 | Redis 的运行时能力 | compose | `$REPO` | `scripts/p5b/redis_capability.sh 127.0.0.1 66479` | 退出码 0 | `scripts/p5b/evidence/a5.txt` | 自动 | 是 |
-| A6 | 回填 | D2 的凭据或运行环境 | `$REPO` | 以 `APP_CATALOG_REINDEX=true` 启动；然后执行 `redis-cli -p 66479 FT.INFO idx:catalog:v1` | `num_docs` = 商品数 + ACTIVE 物品数（以 SQL 计数为准） | `…/a6.txt` | 自动（需要 D2 环境） | 是 |
-| A7 | 默认模式和 MCP | A6 | `$REPO` | `curl -fsS '127.0.0.1:68180/api/search?q=running%20shoes&debug=true'`；`python3 scripts/p4b/mcp_probe.py --url http://127.0.0.1:68182/mcp --call search_secondhand_items '{"keyword":"kasut"}'` | 前者的 `effectiveMode` 为 `RRF_RERANK`（有 LLM key 时）或 `RRF`（没有时）；后者返回的结果全部是 `item` 类型 | `…/a7.json` | 自动 | 是 |
-| A8 | 评测框架烟测 | A6 | `$REPO` | `python3 eval/run_retrieval_eval.py --queries eval/fixtures/queries.smoke.jsonl --modes keyword,vector,rrf --base http://127.0.0.1:68180 --pricing eval/pricing.json --out /tmp/smoke.md` | 退出码 0 | PR | 自动 | 是 |
-| A9 | 正式跑分 | 已标注的数据 + D2 + `pricing.json` 已由人填好 | `$REPO` | `python3 eval/run_retrieval_eval.py --modes keyword,vector,rrf,rrf_rerank --base http://127.0.0.1:68180 --pricing eval/pricing.json --out eval/results/retrieval-$(date -u +%F).md` | 退出码 0，失败率 ≤ 5%；结果同时包含总表和按类型的分组表；没有 LLM key 时 `rrf_rerank` 这一行标“未执行” | 结果文件 | 自动 | 是（结果如实报告，不设分数门槛） |
+| A5 | Redis 的运行时能力 | compose | `$REPO` | `scripts/p5b/redis_capability.sh 127.0.0.1 63479` | 退出码 0 | `scripts/p5b/evidence/a5.txt` | 自动 | 是 |
+| A6 | 回填 | D2 的凭据或运行环境 | `$REPO` | 以 `APP_CATALOG_REINDEX=true` 启动；然后执行 `redis-cli -p 63479 FT.INFO idx:catalog:v1` | `num_docs` = 商品数 + ACTIVE 物品数（以 SQL 计数为准） | `…/a6.txt` | 自动（需要 D2 环境） | 是 |
+| A7 | 默认模式和 MCP | A6 | `$REPO` | `curl -fsS '127.0.0.1:63180/api/search?q=running%20shoes&debug=true'`；`python3 scripts/p4b/mcp_probe.py --url http://127.0.0.1:63182/mcp --call search_secondhand_items '{"keyword":"kasut"}'` | 前者的 `effectiveMode` 为 `RRF_RERANK`（有 LLM key 时）或 `RRF`（没有时）；后者返回的结果全部是 `item` 类型 | `…/a7.json` | 自动 | 是 |
+| A8 | 评测框架烟测 | A6 | `$REPO` | `python3 eval/run_retrieval_eval.py --queries eval/fixtures/queries.smoke.jsonl --modes keyword,vector,rrf --base http://127.0.0.1:63180 --pricing eval/pricing.json --out /tmp/smoke.md` | 退出码 0 | PR | 自动 | 是 |
+| A9 | 正式跑分 | 已标注的数据 + D2 + `pricing.json` 已由人填好 | `$REPO` | `python3 eval/run_retrieval_eval.py --modes keyword,vector,rrf,rrf_rerank --base http://127.0.0.1:63180 --pricing eval/pricing.json --out eval/results/retrieval-$(date -u +%F).md` | 退出码 0，失败率 ≤ 5%；结果同时包含总表和按类型的分组表；没有 LLM key 时 `rrf_rerank` 这一行标“未执行” | 结果文件 | 自动 | 是（结果如实报告，不设分数门槛） |
 | A10 | README 与结果一致 | A9 | `$REPO` | 人工核对 README 中评测表的数字与结果文件是否一致 | 一致 | PR | 人工 | 是 |
 
 ## 10. 升级、重跑与恢复

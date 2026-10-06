@@ -29,7 +29,7 @@
 | 已合并阶段 | P4b（`CatalogSearchService` 的签名、mcp-server）、P6a（`AbstractIntegrationTest`） | 停止 |
 | 迁移 | V1、V2（以及可能存在的 V1_1）已存在，本阶段新增 V3 | — |
 | 工具 | Docker、JDK 21、Node 20、Python 3.10 | 没有 Docker：IT 和 compose 验收标“未执行”，PR 保持 draft |
-| 端口 | `ftsm-p5a-acc` 项目：MySQL 63306、Redis 66379、Kafka 69092、后端 68080、前端 68081 | 停止 |
+| 端口 | `ftsm-p5a-acc` 项目：MySQL 63306、Redis 63379、Kafka 63092、后端 63080、前端 63081、mcp-server 63082（仅 127.0.0.1）（见 CHANGE_SPEC §0.11） | 停止 |
 | 凭据、人工决策 | 都不需要。标注工作在本阶段之后进行 | — |
 
 ## 3. 阶段输入与输出
@@ -301,10 +301,10 @@ compose 中的 backend 对应地新增这些 `environment` 条目（compose 不�
 | A1 | 构建、单元测试、IT、报告检查 | Docker | `$REPO` | `./mvnw -B verify && python3 scripts/ci/check_test_reports.py --expect scripts/ci/expected-tests.json` | 全部通过 | reports | 自动 | 是 |
 | A2 | V3 执行 | A1 中的 IT | `$REPO` | `MigrationIT` 中的期望版本列表改为 `[1,2,3]`（以及可能存在的 1.1） | 通过 | reports | 自动 | 是 |
 | A3 | 前端 | — | `$REPO/frontend` | `npm ci && npm test && npm run build` | 全部通过 | PR | 自动 | 是 |
-| A4 | API 冒烟 | compose（§7） | `$REPO` | 依次执行：`curl -fsS '127.0.0.1:68080/api/search?q=hoodie'`；`curl -s -o /dev/null -w '%{http_code}' '127.0.0.1:68080/api/search?q='`；`curl -fsS '127.0.0.1:68080/api/search?q=%E8%80%B3%E6%9C%BA&limit=5'` | 第一条返回 200 且 `hits` 非空；第二条返回 400；第三条返回 200，且至少有 1 条 `lang=zh` 的结果（对照 catalog.json 中的 id） | `scripts/p5a/evidence/a4.txt` | 自动 | 是 |
+| A4 | API 冒烟 | compose（§7） | `$REPO` | 依次执行：`curl -fsS '127.0.0.1:63080/api/search?q=hoodie'`；`curl -s -o /dev/null -w '%{http_code}' '127.0.0.1:63080/api/search?q='`；`curl -fsS '127.0.0.1:63080/api/search?q=%E8%80%B3%E6%9C%BA&limit=5'` | 第一条返回 200 且 `hits` 非空；第二条返回 400；第三条返回 200，且至少有 1 条 `lang=zh` 的结果（对照 catalog.json 中的 id） | `scripts/p5a/evidence/a4.txt` | 自动 | 是 |
 | A5 | 数据可以复现 | — | `$REPO` | `python3 scripts/p5a/gen_catalog.py --out /tmp/c.json && diff -q /tmp/c.json backend/src/main/resources/demo/catalog.json` | 两者完全相同；共 400 个商品、200 个物品；每个类目至少有 20 个商品 | PR | 自动 | 是 |
 | A6 | demo 导入 | compose | `$REPO` | 启动 compose；`"${DC[@]}" exec -T mysql mysql … -e "SELECT COUNT(*) FROM products WHERE id BETWEEN 1001 AND 4999"`；然后 `"${DC[@]}" restart backend`，再查一次 | 两次都是 400；第二次启动的日志中有 `inserted 0`、`unchanged 600` | `…/a6.txt` | 自动 | 是 |
-| A7 | 评测框架 | A6 | `$REPO` | `python3 eval/run_retrieval_eval.py --base http://127.0.0.1:68080 --queries eval/fixtures/queries.smoke.jsonl --modes keyword --pricing eval/pricing.json --out /tmp/eval.md`；再用 `--queries eval/queries.jsonl` 运行一次 | 第一次退出码 0，输出中有 Recall@5 和 MRR 两列；第二次退出码 3 | PR | 自动 | 是 |
+| A7 | 评测框架 | A6 | `$REPO` | `python3 eval/run_retrieval_eval.py --base http://127.0.0.1:63080 --queries eval/fixtures/queries.smoke.jsonl --modes keyword --pricing eval/pricing.json --out /tmp/eval.md`；再用 `--queries eval/queries.jsonl` 运行一次 | 第一次退出码 0，输出中有 Recall@5 和 MRR 两列；第二次退出码 3 | PR | 自动 | 是 |
 | A8 | 评测集草稿的格式 | — | `$REPO` | `python3 - <<'PY'`（校验 80 行、四类各 20 行、constraint 类的 filters 非空、`relevant == []`）`PY` | 通过 | PR | 自动 | 是 |
 | A9 | 清理 | — | `$REPO` | `"${DC[@]}" down -v` | — | — | 自动 | 否 |
 
