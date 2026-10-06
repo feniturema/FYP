@@ -1,0 +1,4 @@
+# A4 2026-10-06T04:03:38Z
+GET /api/search?q=hoodie -> 200; hits: 10 ['product:1301', 'item:5004', 'item:5007', 'item:5019', 'item:5021']
+GET /api/search?q= -> 400 {"error":"Bad Request","message":"q must be 1-200 characters","timestamp":"2026-10-06T04:03:38.889721050Z","status":400}
+GET /api/search?q=耳机&limit=5 -> 200; zh hits (by catalog.json lang): 2 [('product:1160', '酒红色耳机', 'zh'), ('item:5080', '经典耳机', 'zh')]

@@ -1,0 +1,5 @@
+== P5a acceptance 2026-10-06T04:02:57Z commit e2b5b65 (tmp /tmp/ftsm-p5a-acc.bzO3Da)
+[2026-10-06T04:03:38Z] PASS A4
+[2026-10-06T04:03:49Z] PASS A6
+[2026-10-06T04:03:50Z] PASS A7
+[2026-10-06T04:03:53Z] PASS A9 (logs kept in /tmp/ftsm-p5a-acc.bzO3Da)

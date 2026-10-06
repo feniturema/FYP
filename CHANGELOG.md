@@ -40,6 +40,17 @@ Authored by Claude Code per `docs/phases/P5a.md`. Keyword mode only; vector / RR
 - A3 `npm ci && npm test && npm run build`: 24 tests, build OK.
 - A5 `gen_catalog.py --out /tmp/c.json && diff -q`: identical; 400 products, 200 items, 40 products per category.
 - A8 query-set format: 80 lines, 20 per type, every `constraint` has `filters`, every `relevant` is `[]`.
+- Compose acceptance on e2b5b65 (project `ftsm-p5a-acc`, `SPRING_PROFILES_ACTIVE=dev,demo`, `DB_NAME=ftsm_demo`),
+  evidence in `scripts/p5a/evidence/`: A4 `q=hoodie` 200 with 10 hits, `q=` 400, `q=耳机&limit=5` 200 with 2
+  `lang=zh` hits; A6 400 demo products after the first start and after a restart, second start logs
+  `inserted 0 … unchanged 600`; A7 smoke run exit 0 with Recall@5 / MRR@10 columns, `queries.jsonl` exit 3;
+  A9 `down -v` of this project only.
+
+### Known issue (not fixed: the SQL is a §6.3 contract)
+- Natural-language mode with the ngram parser scores any shared bigram, so partial matches rank high: for `hoodie`
+  the top product was "Maroon Instant Noodles" (shares `oo`, `od`), above the products named Hoodie; the agent-made
+  smoke set shows lexical Recall@5 0.333 (harness test only, not a result). Measuring and fixing this is what the
+  labelled `eval/queries.jsonl` and P5b are for; a BOOLEAN-mode phrase query would be a spec change.
 
 ### Deviations from spec
 - Acceptance host ports 63306 / 63379 / 63092 / 63080 / 63081 (mcp-server 63082) by maintainer decision: the spec's

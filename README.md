@@ -429,8 +429,10 @@ Tracked in detail in `docs/UPGRADE_PLAN.md` §1:
 - Assistant memory and tool-call records are process-local and bounded; use a shared store before running multiple backend replicas.
 - Real-model assistant acceptance (P4b E1–E2) requires a valid `LLM_API_KEY`; the committed tests use the deterministic no-key/fake-model path. The optional MCP Inspector screenshot (E3) is still pending.
 - The local machine used for this verification had Node 24.12.0; CI pins Node 20.20.2.
-- Search is keyword-only (FULLTEXT ngram): a synonym or another language with no shared characters does not match.
-  Vector / RRF / rerank modes are P5b, which also needs the labelled eval set.
+- Search is keyword-only (FULLTEXT ngram): a synonym or another language with no shared characters does not match,
+  and because any shared 2-character gram counts, loosely related rows can rank above exact name matches (for
+  `hoodie`, "Instant Noodles" via `oo`/`od`). Vector / RRF / rerank modes are P5b, which also needs the labelled
+  eval set.
 
 ---
 

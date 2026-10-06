@@ -1,0 +1,22 @@
+# A7 2026-10-06T04:03:50Z  (smoke fixture = harness test only, not a result)
+smoke run rc=0
+# Retrieval evaluation
+
+- base: `http://127.0.0.1:63080`; queries: `eval/fixtures/queries.smoke.jsonl` (5); limit 10; pricing: YYYY-MM-DD <pricing page url>
+
+### mode keyword: overall
+
+| group | n | Recall@5 | MRR@10 | p50 ms | failures | $/1k queries |
+|---|---|---|---|---|---|---|
+| all | 5 | 0.600 | 0.800 | 12 | 0 | 0.0000 |
+
+### mode keyword: by query type
+
+| group | n | Recall@5 | MRR@10 | p50 ms | failures | $/1k queries |
+|---|---|---|---|---|---|---|
+| constraint | 1 | 1.000 | 1.000 | 10 | 0 | 0.0000 |
+| crosslingual | 1 | 1.000 | 1.000 | 12 | 0 | 0.0000 |
+| lexical | 3 | 0.333 | 0.667 | 12 | 0 | 0.0000 |
+
+queries.jsonl run rc=3
+80 queries have no relevant labels yet: q01, q02, q03, q04, q05, q06, q07, q08, q09, q10, q11, q12, q13, q14, q15, q16, q17, q18, q19, q20, q21, q22, q23, q24, q25, q26, q27, q28, q29, q30, q31, q32,

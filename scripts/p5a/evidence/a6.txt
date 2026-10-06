@@ -1,0 +1,6 @@
+# A6 2026-10-06T04:03:49Z
+products 1001-4999 after first start: 400
+first start:  [Demo] catalogue import into ftsm_demo: inserted 600 (products 400, items 200), unchanged 0, conflicts 0, sellers created 20, reused 0
+products 1001-4999 after restart:     400
+second start: [Demo] catalogue import into ftsm_demo: inserted 0 (products 0, items 0), unchanged 600, conflicts 0, sellers created 0, reused 20
+items 5001-9999: 200; demo sellers: 20
