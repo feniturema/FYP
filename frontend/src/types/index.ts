@@ -97,3 +97,34 @@ export interface ChatMessage {
   /** true while the assistant bubble is still receiving streamed tokens */
   streaming?: boolean;
 }
+
+// ---- Catalogue search (GET /api/search, P5a) ----
+export type SearchType = 'product' | 'item' | 'all';
+
+export interface SearchFilters {
+  maxPrice?: number;
+  category?: string;
+  type?: SearchType;
+}
+
+export interface SearchParams extends SearchFilters {
+  q: string;
+  limit?: number;
+}
+
+export interface SearchHit {
+  ref: string;
+  type: 'product' | 'item';
+  id: number;
+  title: string;
+  price: number;
+  category?: string | null;
+  imageUrl?: string | null;
+  score: number;
+}
+
+export interface SearchResponse {
+  query: string;
+  effectiveMode: string;
+  hits: SearchHit[];
+}

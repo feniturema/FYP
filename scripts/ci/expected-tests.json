@@ -15,7 +15,9 @@
     "AssistantStreamSecurityIT": 5,
     "AssistantResilienceIT": 4,
     "AssistantToolFlowIT": 1,
-    "McpServerIT": 1
+    "McpServerIT": 1,
+    "CatalogSearchIT": 6,
+    "DemoCatalogImportIT": 6
   },
   "surefire_min_total": 70
 }

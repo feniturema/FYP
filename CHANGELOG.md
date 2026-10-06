@@ -5,6 +5,59 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.11.0] — 2026-10-06 — P5a: FULLTEXT search, `/api/search`, demo catalogue, retrieval eval harness
+
+Authored by Claude Code per `docs/phases/P5a.md`. Keyword mode only; vector / RRF / rerank are P5b.
+
+### Added
+- `V3__catalog_fulltext.sql`: ngram FULLTEXT indexes `ft_products (name, description, category)` and
+  `ft_items (title, description, category)`. Index-only; terms under 2 characters never match.
+- catalog-core `search`: `CatalogCategory` (10 values), `SearchQuery`, `SearchResult`, `KeywordRecall` (native
+  `MATCH … AGAINST` per table, top 20, ACTIVE items only) and `HybridSearchService` (KEYWORD: per-table score
+  normalisation, then normalised → raw → product before item → id).
+- Public `GET /api/search` with 400s for every invalid parameter; `mode` / `debug` only under `dev` / `test`.
+- Demo catalogue: `scripts/p5a/gen_catalog.py` (deterministic, `random.Random(42)`) →
+  `backend/src/main/resources/demo/catalog.json` (400 products 1001–1400, 200 items 5001–5200, en/ms/zh 6:2:2,
+  synonym groups). `demo` profile: `DemoCatalogSeeder` (startup guards) + `DemoCatalogImporter` (one transaction,
+  20 sellers, `fail` / `skip` conflicts, report file), then `AUTO_INCREMENT` ≥ 10000.
+- Frontend: `searchController.ts` (300 ms debounce, abort, sequence numbers; idle / loading / results / empty /
+  error), `SearchResults.tsx`; the Marketplace search box uses it, the browse list is unchanged.
+- `eval/`: `queries.jsonl` (80 drafts, `relevant` empty), `fixtures/queries.smoke.jsonl` (5 agent-labelled, harness
+  test only), `pricing.json` template, `run_retrieval_eval.py` (Recall@5, MRR@10, p50, cost per 1000 queries; exit
+  2 above 5 % failures, 3 when unlabelled), `README.md`.
+- Tests: `HybridSearchServiceTest`, `SearchControllerTest`, `CatalogJsonValidationTest` (+ 3 bad fixtures),
+  `CatalogSearchIT`, `DemoCatalogImportIT`, `searchController.test.ts`; `ShopToolsTest` gains the unknown-category case.
+
+### Changed
+- `CatalogSearchService` (MCP `search_products` / `search_secondhand_items`) uses `KeywordRecall`; signatures unchanged.
+- `MigrationIT` expects V1, V2, V3; `expected-tests.json` adds `CatalogSearchIT` (6) and `DemoCatalogImportIT` (6).
+- `docker-compose.yml` passes `APP_DEMO_TARGET_DB`, `APP_DEMO_ALLOW_DEFAULT_DB`, `APP_DEMO_ON_CONFLICT`,
+  `SEED_DEMO_PASSWORD` to the backend. `/api/products` and `/api/items` are unchanged.
+
+### Verified (macOS arm64, Docker Engine 29.8.1)
+- A1/A2 `./mvnw -B verify`: Surefire 134 (backend 124, mcp-server 10), Failsafe 42 in 18 IT classes, 0 failures /
+  errors / skipped; `check_test_reports.py` OK. `MigrationIT` sees versions 1, 2, 3.
+- A3 `npm ci && npm test && npm run build`: 24 tests, build OK.
+- A5 `gen_catalog.py --out /tmp/c.json && diff -q`: identical; 400 products, 200 items, 40 products per category.
+- A8 query-set format: 80 lines, 20 per type, every `constraint` has `filters`, every `relevant` is `[]`.
+
+### Deviations from spec
+- Acceptance host ports 63306 / 63379 / 63092 / 63080 / 63081 (mcp-server 63082) by maintainer decision: the spec's
+  66379, 69092, 68080, 68081 are above 65535. The §0.11 port table has the same problem for P5b and P6b.
+- `CatalogCategory` names are not listed in the spec (only Apparel / Electronics appear): Apparel, Accessories,
+  Lifestyle, Electronics, Books, Stationery, Sports, Food, Home, Beauty (includes the three seed categories).
+- Demo "same content" compares name/title, description, price, category, image, and for items condition and seller;
+  `total_stock` and item `status` are left out because orders change them, otherwise any demo purchase would make the
+  next restart fail in the default `fail` mode. Covered by `DemoCatalogImportIT`.
+- `search_products` keeps its parameters; its result is the usual list, or `{"note", "products"}` only when the
+  category was unknown (§6.5 asks for a hint in the result).
+- catalog-core has no Jackson, so the HTTP shape is `dto/SearchDtos.SearchResponse` (omits `debug` when absent).
+- `debug.ranks.keyword` is the hit's position in the merged keyword list.
+- `application.yml` defaults to the `dev` profile, so locally and in the ITs `mode` / `debug` are active; the
+  non-dev case is tested with the `prod` profile.
+- JSONL has no comments: the smoke fixture's header is a `#` line, which the eval loader skips.
+- No P5a acceptance script is committed (§4 lists none); the evidence files are in `scripts/p5a/evidence/`.
+
 ## [v0.10.0] — 2026-10-06 — P4b: Spring AI assistant, MCP server and SSE
 
 Implemented the assistant upgrade described in `docs/phases/P4b.md`. The existing SecKill and order

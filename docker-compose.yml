@@ -101,6 +101,11 @@ services:
       MCP_SERVER_URL: http://mcp-server:8081
       MCP_CLIENT_ENABLED: ${MCP_CLIENT_ENABLED:-true}
       APP_ASSISTANT_FAKEMODEL: ${APP_ASSISTANT_FAKEMODEL:-false}
+      # P5a demo catalogue: only read under SPRING_PROFILES_ACTIVE containing demo.
+      APP_DEMO_TARGET_DB: ${APP_DEMO_TARGET_DB:-}
+      APP_DEMO_ALLOW_DEFAULT_DB: ${APP_DEMO_ALLOW_DEFAULT_DB:-false}
+      APP_DEMO_ON_CONFLICT: ${APP_DEMO_ON_CONFLICT:-fail}
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@ukm.edu.my}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin@123}
       UPLOAD_DIR: /app/uploads

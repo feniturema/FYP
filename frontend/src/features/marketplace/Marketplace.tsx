@@ -1,18 +1,22 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { itemApi, productApi, orderApi } from '../../services/api';
+import { itemApi, productApi, orderApi, searchApi } from '../../services/api';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 import type { Item, Product } from '../../types';
 import ProductCard from './ProductCard';
 import Spinner from '../../components/common/Spinner';
 import Input from '../../components/common/Input';
+import SearchResults from './SearchResults';
+import { createSearchController, type SearchState } from './searchController';
 
 export default function Marketplace() {
   const [products, setProducts] = useState<Product[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState<SearchState>({ status: 'idle', hits: [] });
+  const searchRef = useRef<ReturnType<typeof createSearchController> | null>(null);
   const [notice, setNotice] = useState('');
   const isAuthed = useAuthStore((s) => s.isAuthenticated());
   const navigate = useNavigate();
@@ -21,7 +25,8 @@ export default function Marketplace() {
   const load = async () => {
     setLoading(true);
     try {
-      const [p, i] = await Promise.all([productApi.list(q), itemApi.list({ q })]);
+      // Browse list (unfiltered); typing in the search box shows SearchResults instead.
+      const [p, i] = await Promise.all([productApi.list(), itemApi.list()]);
       setProducts(p);
       setItems(i);
     } finally {
@@ -30,6 +35,17 @@ export default function Marketplace() {
   };
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
+
+  useEffect(() => {
+    const c = createSearchController((params, signal) => searchApi.search(params, signal), setSearch);
+    searchRef.current = c;
+    return () => c.dispose();
+  }, []);
+
+  const onSearchInput = (value: string) => {
+    setQ(value);
+    searchRef.current?.setQuery(value);
+  };
 
   const buy = async (sourceType: 'B2C_PRODUCT' | 'C2C_ITEM', refId: number) => {
     if (!isAuthed) { navigate('/login'); return; }
@@ -50,14 +66,13 @@ export default function Marketplace() {
         <p className="mt-1 text-ukm-100">Buy official merch, grab flash deals, and trade with fellow students.</p>
         <div className="mt-4 max-w-md">
           <Input placeholder="Search products & listings…" value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && load()} />
+            onChange={(e) => onSearchInput(e.target.value)} />
         </div>
       </header>
 
       {notice && <div className="rounded-lg bg-ukm-50 px-4 py-2 text-sm text-ukm-800">{notice}</div>}
 
-      {loading ? <Spinner /> : (
+      {q.trim() ? <SearchResults state={search} /> : loading ? <Spinner /> : (
         <>
           <section>
             <h2 className="mb-3 text-lg font-bold text-gray-800">Official Store</h2>

@@ -19,10 +19,11 @@
 | Upgrade P4a: catalog-core module split + root Maven Wrapper | Codex (review fixes: Claude Code) | 2026-10-06 | `CHANGELOG.md` v0.8.0; `docs/phases/P4a.md`; PR #7 |
 | Upgrade P6a: Testcontainers integration tests + GitHub Actions CI | Claude Code | 2026-10-06 | `CHANGELOG.md` v0.9.0; `docs/phases/P6a.md` |
 | Upgrade P4b: Spring AI assistant + MCP server + SSE | Claude Code (implementation) / Codex (handoff) | 2026-10-06 | `CHANGELOG.md` v0.10.0; `docs/phases/P4b.md`; branch `p4b-assistant-mcp` |
+| Upgrade P5a: FULLTEXT search, `/api/search`, demo catalogue, eval harness | Claude Code | 2026-10-06 | `CHANGELOG.md` v0.11.0; `docs/phases/P5a.md`; branch `p5a-search` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
-has completed the P1/P2 handoff scope listed in §6. P3, P4a, P6a and P4b are implemented;
+has completed the P1/P2 handoff scope listed in §6. P3, P4a, P6a, P4b and P5a are implemented;
 the assistant is now Spring AI/MCP based with authenticated SSE streaming. The remaining phases
 (hybrid retrieval, multi-replica locking and optional Kubernetes work) are specified in
 `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (master spec) and
@@ -50,10 +51,11 @@ the assistant is now Spring AI/MCP based with authenticated SSE streaming. The r
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
 | AI assistant (Spring AI + DeepSeek/MCP) | ✅ P4b implementation complete on `p4b-assistant-mcp`: authenticated SSE, five remote catalogue tools, local `my_orders`, bounded memory, Resilience4j fallbacks; no-key mode is deterministic |
-| Automated tests | ✅ 108 Surefire tests (21 classes) + 16 Testcontainers `*IT` classes / 30 Failsafe cases (real MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2 and MCP server), all green in `./mvnw -B verify`; guarded by `scripts/ci/check_test_reports.py` and CI in `.github/workflows/ci.yml` |
+| Catalogue search (FULLTEXT) + demo catalogue | ✅ P5a (v0.11.0, branch `p5a-search`): V3 ngram FULLTEXT, public `GET /api/search` (keyword mode), 400 products / 200 items under the `demo` profile, debounced Marketplace search, retrieval eval harness. `eval/queries.jsonl` (80 queries) is **unlabelled**: a person labels it after merge (`eval: label queries`), which blocks P5b |
+| Automated tests | ✅ 134 Surefire tests (24 classes) + 18 Testcontainers `*IT` classes / 42 Failsafe cases (real MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2 and MCP server), all green in `./mvnw -B verify`; guarded by `scripts/ci/check_test_reports.py` and CI in `.github/workflows/ci.yml` |
 | Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
 | Maven Wrapper `mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0), moved to the repo root in P4a (v0.8.0) |
-| Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
+| Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (V2 in P2, V3 FULLTEXT in P5a; next: V4 in P6b, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
 | Load-test tooling (`loadtest/`, k6 2.3.0 via `scripts/tools/install_k6.sh`) | ✅ P0 (v0.5.0); P3 (v0.7.1) added `persist.sql`, `--drain none`, the three-throughput `summarize.py`, `reset.sh` and `loadtest/bench/` (configs A-baseline / B-sync / C-async in compose project `ftsm-p3-bench`) — smoke runs only so far |
 | SecKill sync comparison mode (`SECKILL_MODE=sync`, `app.seckill.mode`; default `async`) | ✅ P3 (v0.7.1) — benchmark only: the order is written in the request thread, no outbox / Kafka; never make it the default. Smoke A3–A6 pass for A, B, C (`loadtest/results/_smoke/{A-baseline,B-sync,C-async}/`). **Formal measurement (H1) pending, by a person** (`docs/phases/P3.md` §7.3); README "Performance" stays `TBD` and no performance claim may be made until it is merged |
 | Java 21 + Boot 3.5.16 (Hibernate 6.6.53, Flyway 11.7.2, Lombok 1.18.46, Connector/J 9.7.0, springdoc 2.8.17) | ✅ P1 (v0.6.0) — D1=boot-3.5.16; no V1_1 migration was needed (fresh and upgraded schemas identical) |
@@ -98,7 +100,7 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via the outbox �
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
-- **Tests:** `./mvnw -B verify` (108 Surefire tests plus 30 Failsafe cases across 16 `*IT` classes;
+- **Tests:** `./mvnw -B verify` (134 Surefire tests plus 42 Failsafe cases across 18 `*IT` classes;
   Testcontainers needs a running Docker), then
   `python3 scripts/ci/check_test_reports.py --expect scripts/ci/expected-tests.json`.
   The `h2` runtime profile was removed in P2 (H2 is test scope only).
@@ -329,9 +331,11 @@ plane. `POST /api/assistant/stream` accepts a JSON message and optional conversa
   P0 (v0.5.0), P1 (v0.6.0), P2 (v0.7.0) and P3 (v0.7.1: sync comparison mode, benchmark tooling, smoke)
   are implemented and merged (P3 via PR #5; the event-cache pinning fix, CHANGELOG [Unreleased], via PR #6,
   both 2026-10-05) and P4a (v0.8.0, PR #7, 2026-10-05). P6a (v0.9.0: Testcontainers ITs + CI) was
-  merged via PR #8. P4b is implemented on `p4b-assistant-mcp`; local A4–A10 acceptance and the full
-  Maven verification are green. Draft PR #9 is open for review (not merged). The next implementation phase
-  after P4b is P5a (hybrid retrieval); P5b remains gated on human labelling.
+  merged via PR #8, P4b (v0.10.0) via PR #9. P5a (v0.11.0: FULLTEXT search, `/api/search`, demo catalogue,
+  eval harness) is implemented on `p5a-search`, PR open, not merged. After it merges a person labels
+  `eval/queries.jsonl` (commit `eval: label queries`); P5b is blocked until then. The port table in
+  `docs/CHANGE_SPEC.md` §0.11 gives P5a/P5b/P6b host ports above 65535; P5a used 63306/63379/63092/63080/63081
+  (maintainer decision) and the table still needs a docs fix before P5b/P6b.
   An H1 attempt on the dev MacBook (2026-10-05) is incomplete and diagnostic only: no config had a valid
   step at RATE ≥ 1000, and its numbers are not performance results (evidence kept locally, uncommitted).
   P3 H1 (formal A/B/C measurement on a

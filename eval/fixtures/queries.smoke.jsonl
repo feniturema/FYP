@@ -1,0 +1,6 @@
+# AGENT-LABELLED SMOKE FIXTURE: only for testing eval/run_retrieval_eval.py itself. Never report results from it; the real set is eval/queries.jsonl, labelled by a person.
+{"id": "s1", "q": "hoodie", "type": "lexical", "relevant": ["product:1001", "product:1006", "product:1032"]}
+{"id": "s2", "q": "tumbler", "type": "lexical", "relevant": ["product:1092", "product:1097", "product:1116"]}
+{"id": "s3", "q": "earphones", "type": "lexical", "relevant": ["product:1126", "product:1131", "product:1142"]}
+{"id": "s4", "q": "kasut larian", "type": "crosslingual", "relevant": ["product:1263", "product:1273"]}
+{"id": "s5", "q": "earphones under RM 250", "type": "constraint", "filters": {"maxPrice": 250, "category": "Electronics", "type": "product"}, "relevant": ["product:1131"]}

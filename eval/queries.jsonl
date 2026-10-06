@@ -1,0 +1,80 @@
+{"id": "q01", "q": "hoodie", "type": "lexical", "relevant": []}
+{"id": "q02", "q": "backpack", "type": "lexical", "relevant": []}
+{"id": "q03", "q": "power bank", "type": "lexical", "relevant": []}
+{"id": "q04", "q": "lanyard", "type": "lexical", "relevant": []}
+{"id": "q05", "q": "tumbler", "type": "lexical", "relevant": []}
+{"id": "q06", "q": "textbook", "type": "lexical", "relevant": []}
+{"id": "q07", "q": "yoga mat", "type": "lexical", "relevant": []}
+{"id": "q08", "q": "desk lamp", "type": "lexical", "relevant": []}
+{"id": "q09", "q": "sunscreen", "type": "lexical", "relevant": []}
+{"id": "q10", "q": "highlighter", "type": "lexical", "relevant": []}
+{"id": "q11", "q": "kasut sukan", "type": "lexical", "relevant": []}
+{"id": "q12", "q": "bantal", "type": "lexical", "relevant": []}
+{"id": "q13", "q": "kamus", "type": "lexical", "relevant": []}
+{"id": "q14", "q": "payung", "type": "lexical", "relevant": []}
+{"id": "q15", "q": "保温杯", "type": "lexical", "relevant": []}
+{"id": "q16", "q": "充电宝", "type": "lexical", "relevant": []}
+{"id": "q17", "q": "笔袋", "type": "lexical", "relevant": []}
+{"id": "q18", "q": "台灯", "type": "lexical", "relevant": []}
+{"id": "q19", "q": "instant noodles", "type": "lexical", "relevant": []}
+{"id": "q20", "q": "lip balm", "type": "lexical", "relevant": []}
+{"id": "q21", "q": "sweatshirt", "type": "synonym", "relevant": []}
+{"id": "q22", "q": "rucksack", "type": "synonym", "relevant": []}
+{"id": "q23", "q": "portable charger", "type": "synonym", "relevant": []}
+{"id": "q24", "q": "earbuds", "type": "synonym", "relevant": []}
+{"id": "q25", "q": "trainers", "type": "synonym", "relevant": []}
+{"id": "q26", "q": "sunblock", "type": "synonym", "relevant": []}
+{"id": "q27", "q": "travel mug", "type": "synonym", "relevant": []}
+{"id": "q28", "q": "exercise book", "type": "synonym", "relevant": []}
+{"id": "q29", "q": "reading light", "type": "synonym", "relevant": []}
+{"id": "q30", "q": "facial cleanser", "type": "synonym", "relevant": []}
+{"id": "q31", "q": "windbreaker", "type": "synonym", "relevant": []}
+{"id": "q32", "q": "neck strap", "type": "synonym", "relevant": []}
+{"id": "q33", "q": "移动电源", "type": "synonym", "relevant": []}
+{"id": "q34", "q": "卫衣", "type": "synonym", "relevant": []}
+{"id": "q35", "q": "便当盒", "type": "synonym", "relevant": []}
+{"id": "q36", "q": "tetikus tanpa wayar", "type": "synonym", "relevant": []}
+{"id": "q37", "q": "beg sekolah", "type": "synonym", "relevant": []}
+{"id": "q38", "q": "mee segera", "type": "synonym", "relevant": []}
+{"id": "q39", "q": "cushion", "type": "synonym", "relevant": []}
+{"id": "q40", "q": "revision book", "type": "synonym", "relevant": []}
+{"id": "q41", "q": "蓝牙耳机", "type": "crosslingual", "relevant": []}
+{"id": "q42", "q": "双肩包", "type": "crosslingual", "relevant": []}
+{"id": "q43", "q": "跑鞋", "type": "crosslingual", "relevant": []}
+{"id": "q44", "q": "防晒霜", "type": "crosslingual", "relevant": []}
+{"id": "q45", "q": "无线鼠标", "type": "crosslingual", "relevant": []}
+{"id": "q46", "q": "雨伞", "type": "crosslingual", "relevant": []}
+{"id": "q47", "q": "羽毛球拍", "type": "crosslingual", "relevant": []}
+{"id": "q48", "q": "饼干", "type": "crosslingual", "relevant": []}
+{"id": "q49", "q": "笔记本电脑支架", "type": "crosslingual", "relevant": []}
+{"id": "q50", "q": "咖啡", "type": "crosslingual", "relevant": []}
+{"id": "q51", "q": "fon kepala", "type": "crosslingual", "relevant": []}
+{"id": "q52", "q": "beg galas", "type": "crosslingual", "relevant": []}
+{"id": "q53", "q": "botol air", "type": "crosslingual", "relevant": []}
+{"id": "q54", "q": "pelembap muka", "type": "crosslingual", "relevant": []}
+{"id": "q55", "q": "selimut", "type": "crosslingual", "relevant": []}
+{"id": "q56", "q": "minuman tenaga", "type": "crosslingual", "relevant": []}
+{"id": "q57", "q": "kasut larian", "type": "crosslingual", "relevant": []}
+{"id": "q58", "q": "水壶", "type": "crosslingual", "relevant": []}
+{"id": "q59", "q": "headphones untuk kuliah", "type": "crosslingual", "relevant": []}
+{"id": "q60", "q": "hoodie 连帽衫", "type": "crosslingual", "relevant": []}
+{"id": "q61", "q": "hoodie under RM 50", "type": "constraint", "filters": {"maxPrice": 50, "category": "Apparel", "type": "product"}, "relevant": []}
+{"id": "q62", "q": "200 令吉以内的蓝牙耳机", "type": "constraint", "filters": {"maxPrice": 200, "category": "Electronics", "type": "product"}, "relevant": []}
+{"id": "q63", "q": "cheap power bank below 100", "type": "constraint", "filters": {"maxPrice": 100, "category": "Electronics"}, "relevant": []}
+{"id": "q64", "q": "used textbook", "type": "constraint", "filters": {"category": "Books", "type": "item"}, "relevant": []}
+{"id": "q65", "q": "second-hand running shoes under RM 150", "type": "constraint", "filters": {"maxPrice": 150, "category": "Sports", "type": "item"}, "relevant": []}
+{"id": "q66", "q": "backpack below RM 80", "type": "constraint", "filters": {"maxPrice": 80, "category": "Accessories"}, "relevant": []}
+{"id": "q67", "q": "tumbler bawah RM 40", "type": "constraint", "filters": {"maxPrice": 40, "category": "Lifestyle"}, "relevant": []}
+{"id": "q68", "q": "dictionary for students", "type": "constraint", "filters": {"category": "Books", "type": "product"}, "relevant": []}
+{"id": "q69", "q": "notebook under RM 10", "type": "constraint", "filters": {"maxPrice": 10, "category": "Stationery"}, "relevant": []}
+{"id": "q70", "q": "yoga mat item", "type": "constraint", "filters": {"category": "Sports", "type": "item"}, "relevant": []}
+{"id": "q71", "q": "50 令吉以内的台灯", "type": "constraint", "filters": {"maxPrice": 50, "category": "Home"}, "relevant": []}
+{"id": "q72", "q": "sunscreen under RM 30", "type": "constraint", "filters": {"maxPrice": 30, "category": "Beauty"}, "relevant": []}
+{"id": "q73", "q": "kopi segera murah", "type": "constraint", "filters": {"maxPrice": 20, "category": "Food"}, "relevant": []}
+{"id": "q74", "q": "pillow listing", "type": "constraint", "filters": {"category": "Home", "type": "item"}, "relevant": []}
+{"id": "q75", "q": "wireless mouse under RM 60", "type": "constraint", "filters": {"maxPrice": 60, "category": "Electronics", "type": "product"}, "relevant": []}
+{"id": "q76", "q": "二手小说", "type": "constraint", "filters": {"category": "Books", "type": "item"}, "relevant": []}
+{"id": "q77", "q": "umbrella below RM 25", "type": "constraint", "filters": {"maxPrice": 25, "category": "Accessories"}, "relevant": []}
+{"id": "q78", "q": "badminton racket", "type": "constraint", "filters": {"category": "Sports", "type": "product"}, "relevant": []}
+{"id": "q79", "q": "lip balm under RM 15", "type": "constraint", "filters": {"maxPrice": 15, "category": "Beauty", "type": "product"}, "relevant": []}
+{"id": "q80", "q": "jaket bawah RM 100", "type": "constraint", "filters": {"maxPrice": 100, "category": "Apparel"}, "relevant": []}
