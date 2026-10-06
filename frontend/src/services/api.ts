@@ -3,6 +3,7 @@ import type {
   AuthResponse, Item, Product, SeckillEvent, SeckillBuyResponse,
   SeckillResult, Order, Review, ReviewSummary,
 } from '../types';
+import { streamAssistant } from './sse';
 
 // ---- Auth ----
 export const authApi = {
@@ -74,8 +75,11 @@ export const uploadApi = {
 
 // ---- Chat ----
 export const chatApi = {
-  send: (message: string) =>
-    api.post<{ reply: string }>('/chat', { message }).then((r) => r.data),
+  /** Non-streaming reply (kept for existing callers). */
+  send: (message: string, conversationId?: string) =>
+    api.post<{ reply: string }>('/chat', { message, conversationId }).then((r) => r.data),
+  /** Streaming reply over SSE: POST /api/assistant/stream (see sse.ts). */
+  stream: streamAssistant,
 };
 
 // ---- Admin ----

@@ -1,0 +1,33 @@
+# FTSM MCP server (docs/phases/P4b.md §7.2). Read-only: the schema is migrated by backend (Flyway off here),
+# this server only validates it. Connects as the SELECT-only account ftsm_ro.
+server:
+  port: 8081
+spring:
+  application:
+    name: ftsm-mcp-server
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/ftsm_ecommerce?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    username: ${MCP_DB_USERNAME:ftsm_ro}
+    password: ${MCP_DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: false
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  ai:
+    mcp:
+      server:
+        name: ftsm-shop
+        version: 1.0.0
+        type: SYNC
+        protocol: STREAMABLE
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

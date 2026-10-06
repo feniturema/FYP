@@ -5,6 +5,64 @@ Format: date + semantic version, grouped into Added / Changed / Fixed / Verified
 
 ---
 
+## [v0.10.0] — 2026-10-06 — P4b: Spring AI assistant, MCP server and SSE
+
+Implemented the assistant upgrade described in `docs/phases/P4b.md`. The existing SecKill and order
+flows remain unchanged.
+
+### Added
+- Spring AI 1.1.8 with DeepSeek/OpenAI-compatible provider selection, deterministic no-key startup,
+  and a compatibility `POST /api/chat` aggregation path.
+- Authenticated `POST /api/assistant/stream` SSE with token/done/error events and frontend SSE parsing.
+- `mcp-server` Spring AI MCP module with five catalogue tools; backend MCP client wiring plus the
+  local authenticated `my_orders` tool.
+- Bounded Caffeine conversation memory and tool-call records; Resilience4j timeout, circuit-breaker
+  and rate-limiter policies.
+- Compose health/read-only database setup, MCP server image, nginx SSE proxy settings, assistant
+  evaluation fixtures and P4b acceptance scripts.
+
+### Changed
+- JWT security context is explicitly saved for async dispatch so identity survives the SSE lifecycle.
+- Chatbot configuration now uses `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL` and `DEEPSEEK_BASE_URL`; a
+  blank key keeps the service available without contacting a provider.
+- CI builds/tests the dynamic backend, MCP server and frontend matrix and retains the zero-test guard.
+
+### Verified
+- `./mvnw -B verify` on c7569c1: 108 Surefire tests and 30 Failsafe cases across 16 integration-test classes,
+  all passed; `scripts/ci/check_test_reports.py` passed.
+- Frontend `npm test` and `npm run build` passed locally.
+- Compose acceptance A4–A10 passed on c7569c1 (`scripts/p4b/acceptance.sh`, project `ftsm-p4b-acc`); evidence in
+  `scripts/p4b/evidence/`. A8 through nginx: first token 415 ms, last 1313 ms (4 tokens, 300 ms apart); A7: tools
+  back to 6 within 31 s of starting mcp-server.
+- `AssistantStreamSecurityIT` case 1 before the §6.7 change: HTTP 200 with a truncated body (client
+  `chunked transfer encoding, state: READING_LENGTH`) because the ASYNC dispatch was denied
+  (`AuthorizationDeniedException`, "response is already committed"). After saving the context in
+  `JwtAuthFilter` and setting `RequestAttributeSecurityContextRepository` in `SecurityConfig`: 5/5.
+
+### Deviations
+- The repository currently contains Flyway V1 and V2; P4b integration tests apply both. The P4b
+  text references V3, which belongs to the later P5a phase, so no speculative migration was added.
+- CI pins Node 20.20.2; this macOS verification ran with Node 24.12.0.
+- Real-provider evaluation E1–E2 and optional Inspector screenshot E3 remain pending; tests use the
+  deterministic no-key/fake-model path. These external acceptance items do not block merging.
+- §6.7 expected a 403 for case 1 if the context was not saved; the observed symptom was a truncated 200 (see
+  Verified). The prescribed fix was applied unchanged.
+- `io.modelcontextprotocol.sdk:mcp` is not managed by `spring-ai-bom` 1.1.8; it is pinned through the root property
+  `mcp-sdk.version` = 0.18.3, the version `spring-ai-mcp` 1.1.8 brings in.
+- mcp-server registers the tool provider as `shopToolsProvider`: the spec's bean name `shopTools` clashes with the
+  `ShopTools` component.
+- Backend MCP callbacks use `McpToolNamePrefixGenerator.noPrefix()` (stable tool names for the debug endpoint and
+  the eval) and `ToolContextToMcpMetaConverter.noOp()` (the user id is not sent to mcp-server).
+- `McpServerIT` seeds products, an item, an event, reviews and the read-only user; no orders (no MCP tool reads them).
+- `check_test_reports.py` already read every module's reports (P6a); it now counts `<testcase>` elements because
+  Failsafe's suite `tests` attribute undercounts `@Nested` classes (`AssistantStartupIT`: 3 instead of 7).
+- Both Dockerfiles copy every module pom: the root reactor lists all modules even when one is built.
+- `AssistantResilienceIT` starts each test at a fresh rate-limiter cycle; otherwise a test that lands in the same
+  1 s cycle as the 25-request burst is itself rate limited.
+- The fallback text (not specified) reuses the previous chatbot error message; `ChatWidget` falls back to
+  `crypto.getRandomValues` where `crypto.randomUUID` is unavailable (plain-HTTP origins).
+- `AbstractIntegrationTest` gains a `postJson` fixture; existing fixtures are unchanged.
+
 ## [v0.9.0] — 2026-10-06 — P6a: Testcontainers integration tests and CI
 
 Authored by Claude Code per `docs/phases/P6a.md`. Tests and CI only: no application code, migration or frontend

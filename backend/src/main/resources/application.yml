@@ -52,6 +52,27 @@ spring:
     listener:
       ack-mode: record
 
+  # AI assistant (P4b, docs/phases/P4b.md §6.2 / §7.1). LLM_PROVIDER defaults to none (assistant off);
+  # LlmProviderEnvironmentPostProcessor turns deepseek-without-key into none and rejects unknown providers.
+  # The ChatClient autoconfiguration stays off: AssistantService builds its own ChatClient.
+  ai:
+    model:
+      chat: ${LLM_PROVIDER:none}
+    chat:
+      client:
+        enabled: false
+    deepseek:
+      api-key: ${LLM_API_KEY:}
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}     # without /v1
+      chat:
+        options:
+          model: ${LLM_MODEL:deepseek-v4-flash}
+          temperature: 0.3
+
+  mvc:
+    async:
+      request-timeout: 60s
+
   data:
     redis:
       host: ${REDIS_HOST:localhost}
@@ -87,11 +108,6 @@ app:
   mail:
     enabled: ${MAIL_ENABLED:false}         # when false, OTP is logged instead of emailed
     from: ${MAIL_FROM:no-reply@ftsm.ukm.edu.my}
-  llm:
-    # OpenAI-compatible endpoint. Default: DeepSeek. Override via env vars for other providers.
-    base-url: ${LLM_BASE_URL:https://api.deepseek.com/v1}
-    api-key: ${LLM_API_KEY:}
-    model: ${LLM_MODEL:deepseek-v4-flash}
   seed:
     enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:admin@ukm.edu.my}
@@ -111,12 +127,33 @@ app:
     relay-batch-size: 500
     event-cache-ttl: 5s
     reconcile-grace: 30m
+  assistant:
+    mcp-url: ${MCP_SERVER_URL:http://localhost:8081}
+    mcp-enabled: ${MCP_CLIENT_ENABLED:true}
+    mcp-retry-interval: 30s
+    mcp-tools-ttl: 5m
+    fake-model: false
+
+resilience4j:
+  ratelimiter:
+    instances:
+      llm:
+        limit-for-period: 20
+        limit-refresh-period: 1s
+        timeout-duration: 0
+  circuitbreaker:
+    instances:
+      llm:
+        sliding-window-size: 20
+        minimum-number-of-calls: 10
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
 
 management:
   endpoints:
     web:
       exposure:
-        include: health, info
+        include: health, info, circuitbreakers
   health:
     # SMTP isn't reachable in dev (no creds) — don't let it drag /health to DOWN.
     mail:

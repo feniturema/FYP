@@ -18,12 +18,14 @@
 | Fix: SecKill event cache loads outside synchronized monitors (found while diagnosing H1 stalls) | Claude Code | 2026-10-05 | `CHANGELOG.md` [Unreleased]; `loadtest/results/H1-cache-fix/CACHE-FIX.md` |
 | Upgrade P4a: catalog-core module split + root Maven Wrapper | Codex (review fixes: Claude Code) | 2026-10-06 | `CHANGELOG.md` v0.8.0; `docs/phases/P4a.md`; PR #7 |
 | Upgrade P6a: Testcontainers integration tests + GitHub Actions CI | Claude Code | 2026-10-06 | `CHANGELOG.md` v0.9.0; `docs/phases/P6a.md` |
+| Upgrade P4b: Spring AI assistant + MCP server + SSE | Claude Code (implementation) / Codex (handoff) | 2026-10-06 | `CHANGELOG.md` v0.10.0; `docs/phases/P4b.md`; branch `p4b-assistant-mcp` |
 
 This document is the single source of truth for continuing development. The **foundation
 is built, compiles, and the critical high-concurrency path is verified end-to-end**. Codex
-has completed the P1/P2 handoff scope listed in §6. P3 and AI chatbot are also complete.
-The next phase (v0.5+: Java 21, Outbox + Kafka, Spring AI/MCP, hybrid retrieval, CI/K8s)
-is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (master spec) and
+has completed the P1/P2 handoff scope listed in §6. P3, P4a, P6a and P4b are implemented;
+the assistant is now Spring AI/MCP based with authenticated SSE streaming. The remaining phases
+(hybrid retrieval, multi-replica locking and optional Kubernetes work) are specified in
+`docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (master spec) and
 `docs/phases/` + `docs/agent-prompts/` (one execution package and prompt per phase). Start P0 with
 `docs/agent-prompts/START-P0.md`; known gaps in the current code are in §8 below.
 
@@ -47,8 +49,8 @@ is specified in `docs/UPGRADE_PLAN.md` (rationale), `docs/CHANGE_SPEC.md` (maste
 | Cart checkout (`/cart`, Zustand `useCartStore`, payment selector) | ✅ Done by Claude Code (v0.3.0) |
 | Image upload (`POST /api/upload`, `ImageUpload` widget, static serving) | ✅ Done by Claude Code (v0.3.0) |
 | Docker Compose + Nginx deploy | ✅ Done (not yet deployed to a server) |
-| AI chatbot (DeepSeek, OpenAI-compat, product-context aware) | ✅ ACTIVE — `LLM_API_KEY` wired (v0.4.0); Docker Compose passes `LLM_*` since v0.4.3 |
-| Automated tests | ✅ 70 JUnit tests (14 classes; SecKill buy/outbox/listener/reconciler/controller + H2 transaction tests since P2, sync mode since P3, event-cache pinning regression since the cache fix) + `scripts/e2e_test.py` (8 checks) + `scripts/p2/acceptance.sh` (compose fault-injection acceptance) + since P6a 11 Testcontainers `*IT` classes / 12 cases (Failsafe, real MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2) guarded by `scripts/ci/check_test_reports.py` + `scripts/ci/expected-tests.json`, and CI in `.github/workflows/ci.yml` |
+| AI assistant (Spring AI + DeepSeek/MCP) | ✅ P4b implementation complete on `p4b-assistant-mcp`: authenticated SSE, five remote catalogue tools, local `my_orders`, bounded memory, Resilience4j fallbacks; no-key mode is deterministic |
+| Automated tests | ✅ 108 Surefire tests (21 classes) + 16 Testcontainers `*IT` classes / 30 Failsafe cases (real MySQL 8.0.46 / Kafka 3.9.2 / Redis 8.10.2 and MCP server), all green in `./mvnw -B verify`; guarded by `scripts/ci/check_test_reports.py` and CI in `.github/workflows/ci.yml` |
 | Baseline tag `v0.4.2-baseline` (annotated, peeled → `5f5fae4`) | ✅ P0 (v0.5.0) — on `origin` (pushed by the maintainer; `git ls-remote origin 'refs/tags/v0.4.2-baseline^{}'` → `5f5fae4…`) |
 | Maven Wrapper `mvnw` (Maven 3.9.11, sha256-verified) | ✅ P0 (v0.5.0), moved to the repo root in P4a (v0.8.0) |
 | Flyway schema migrations (`V1__baseline.sql`, `ddl-auto: validate`, legacy DBs baselined) | ✅ P0 (v0.5.0) — every entity change now needs a new migration (next: V2 in P2, see `docs/CHANGE_SPEC.md` §0.6); never edit a merged one |
@@ -96,8 +98,8 @@ duplicate-buy → `ALREADY_BOUGHT` · orders persisted to MySQL via the outbox �
   ```bash
   cd frontend && npm install && npm run dev     # http://localhost:5173 (proxies /api)
   ```
-- **Tests:** `./mvnw -B verify` (70 unit tests: Mockito + H2 slices, Flyway off, no broker; plus 12 `*IT` cases
-  on Testcontainers, which need a running Docker), then
+- **Tests:** `./mvnw -B verify` (108 Surefire tests plus 30 Failsafe cases across 16 `*IT` classes;
+  Testcontainers needs a running Docker), then
   `python3 scripts/ci/check_test_reports.py --expect scripts/ci/expected-tests.json`.
   The `h2` runtime profile was removed in P2 (H2 is test scope only).
 - **Shared helpers for acceptance runs:** `scripts/lib/wait.sh` (`wait_http`, `wait_cmd` — every
@@ -254,25 +256,22 @@ Write at least a happy-path test where noted.
 
 ---
 
-## 7. AI chatbot — ACTIVE
+## 7. AI assistant — P4b implementation complete
 
-**AI chatbot is now ACTIVE** (v0.4.0). It uses the **DeepSeek** OpenAI-compatible API.
+P4b replaces the blocking WebClient chatbot with Spring AI `ChatClient` and a small MCP tool
+plane. `POST /api/assistant/stream` accepts a JSON message and optional conversation id as an authenticated SSE endpoint; the old
+`POST /api/chat` endpoint remains as an aggregated compatibility path.
 
-- Provider: DeepSeek (`https://api.deepseek.com/v1`), default model `deepseek-v4-flash`
-  (`deepseek-v4-pro` also works; it is a reasoning model, hence `max_tokens: 2048`).
-- API key stored in `.env` as `LLM_API_KEY` (gitignored — never commit it).
-- `ChatService` builds a product-context prompt (products whose name/category appears in the
-  message, max 10; the whole catalogue when it has ≤ 10 products — there is no
-  tool/function calling and no product `active` flag)
-  and calls `POST /chat/completions` via WebClient. Falls back to a friendly placeholder if
-  `LLM_API_KEY` is blank.
-- `ChatbotController` returns `ChatResponse` (blocks on the Mono) — required to make Spring
-  Security 6 `@EnableMethodSecurity` + servlet `SecurityContextHolder` play nicely together.
-- `ChatWidget.tsx` is unchanged; the floating 💬 button on every page is now live.
-- To switch provider: set `LLM_BASE_URL` + `LLM_MODEL` in `.env`; any OpenAI-compatible
-  endpoint works (OpenAI, Groq, Together, local Ollama, etc.).
-- On macOS you may see a harmless netty DNS warning; add
-  `io.netty:netty-resolver-dns-native-macos` (osx-aarch_64 classifier) to `pom.xml` if it bothers you.
+- `LLM_PROVIDER=deepseek` selects the DeepSeek OpenAI-compatible chat model; `LLM_PROVIDER=none`
+  or a blank `LLM_API_KEY` keeps startup deterministic and avoids external calls.
+- The MCP server exposes five catalogue tools (`search_products`, `search_secondhand_items`,
+  `get_product_detail`, `get_stock`, `list_flash_sales`). The backend adds local `my_orders`
+  with the authenticated user id from `ToolContext`.
+- Resilience4j supplies a circuit breaker and rate limiter; Reactor applies a 30-second stream timeout. In-memory conversation
+  memory and tool-call records are bounded (1,000 conversations, two-hour idle expiry).
+- Security context is saved for async dispatch so JWT identity survives the SSE lifecycle.
+- P4b local acceptance A4–A10 passed on c7569c1; evidence in `scripts/p4b/evidence/`.
+  The real-provider evaluation cases E1–E2 and optional Inspector screenshot E3 remain pending.
 
 ---
 
@@ -321,7 +320,7 @@ Write at least a happy-path test where noted.
 - ✅ P2 independently re-verified by Claude Code (Sonnet 4.6) on 2026-06-01: 8/8 e2e, all new endpoints smoke-tested.
 - ✅ P3.1 cart checkout: `pages/Cart.tsx`, Navbar badge, `ProductCard.onAddToCart`, sequential checkout, payment selector. (Claude Code v0.3.0)
 - ✅ P3.2 image upload: `UploadController`, `WebMvcConfig`, `ImageUpload` component, wired in SellItem + Admin, Docker volume. (Claude Code v0.3.0)
-- ✅ AI chatbot ACTIVE: DeepSeek OpenAI-compatible integration; `ChatService` product-context aware; `ChatWidget` live. (Claude Code v0.4.0)
+- ✅ AI assistant P4b: Spring AI + DeepSeek/MCP, authenticated SSE and compatibility POST endpoint; `ChatWidget` uses SSE. (v0.10.0)
 - ✅ All builds green (backend + frontend) and `scripts/e2e_test.py` 8/8 after v0.4.0.
 - ⬜ Remaining: real server deployment, HTTPS, real SMTP verification end-to-end.
 - ⬜ Next: v0.5+ upgrade. Master spec: `docs/CHANGE_SPEC.md` (dependencies, registries, coverage matrix).
@@ -329,10 +328,10 @@ Write at least a happy-path test where noted.
   Order: P0 → P1 → P2 → P3 → P4a → P6a → P4b → P5a → (human labelling) → P5b → P6b → P7 (optional).
   P0 (v0.5.0), P1 (v0.6.0), P2 (v0.7.0) and P3 (v0.7.1: sync comparison mode, benchmark tooling, smoke)
   are implemented and merged (P3 via PR #5; the event-cache pinning fix, CHANGELOG [Unreleased], via PR #6,
-  both 2026-10-05) and P4a (v0.8.0, PR #7, 2026-10-05). P6a (v0.9.0: Testcontainers ITs + CI) is code
-  complete on `p6a-it-ci`, draft PR open, not merged. Next phase: P4b (not started). After P6a merges, a
-  person checks P6a A6 (the `main` run publishes 2 images to GHCR; needs Actions "Workflow permissions"
-  with `packages: write`).
+  both 2026-10-05) and P4a (v0.8.0, PR #7, 2026-10-05). P6a (v0.9.0: Testcontainers ITs + CI) was
+  merged via PR #8. P4b is implemented on `p4b-assistant-mcp`; local A4–A10 acceptance and the full
+  Maven verification are green. Draft PR #9 is open for review (not merged). The next implementation phase
+  after P4b is P5a (hybrid retrieval); P5b remains gated on human labelling.
   An H1 attempt on the dev MacBook (2026-10-05) is incomplete and diagnostic only: no config had a valid
   step at RATE ≥ 1000, and its numbers are not performance results (evidence kept locally, uncommitted).
   P3 H1 (formal A/B/C measurement on a

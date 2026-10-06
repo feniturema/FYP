@@ -10,7 +10,12 @@
     "DltPublishFailureIT": 1,
     "ProductOrderRaceIT": 1,
     "ItemOrderRaceIT": 1,
-    "ReconcilerIT": 2
+    "ReconcilerIT": 2,
+    "AssistantStartupIT": 7,
+    "AssistantStreamSecurityIT": 5,
+    "AssistantResilienceIT": 4,
+    "AssistantToolFlowIT": 1,
+    "McpServerIT": 1
   },
   "surefire_min_total": 70
 }

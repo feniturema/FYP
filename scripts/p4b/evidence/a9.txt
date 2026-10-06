@@ -1,0 +1,5 @@
+# A9 2026-10-05T21:39:18Z
+DELETE as ftsm_ro: rc=1
+ERROR 1142 (42000) at line 1: DELETE command denied to user 'ftsm_ro'@'localhost' for table 'products'
+init script with MCP_DB_PASSWORD="bad'pass": rc=1
+MCP_DB_PASSWORD must match ^[A-Za-z0-9._~-]{24,128}$

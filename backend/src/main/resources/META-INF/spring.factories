@@ -1,0 +1,2 @@
+org.springframework.boot.env.EnvironmentPostProcessor=\
+my.edu.ukm.ftsm.ecommerce.config.LlmProviderEnvironmentPostProcessor
