@@ -9,6 +9,7 @@ import my.edu.ukm.ftsm.ecommerce.repository.SeckillEventRepository;
 import my.edu.ukm.ftsm.ecommerce.search.CatalogSearchService;
 import my.edu.ukm.ftsm.ecommerce.search.SearchDtos.FlashSaleView;
 import my.edu.ukm.ftsm.ecommerce.search.SearchDtos.ProductDetailView;
+import my.edu.ukm.ftsm.ecommerce.search.SearchDtos.ProductView;
 import my.edu.ukm.ftsm.ecommerce.search.SearchDtos.StockView;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,20 @@ class ShopToolsTest {
     void setUp() {
         when(redis.opsForValue()).thenReturn(values);
         tools = new ShopTools(search, products, events, reviews, redis);
+    }
+
+    @Test
+    void searchProductsIgnoresAnUnknownCategoryAndSaysSo() {
+        ProductView hoodie = new ProductView(1, "FTSM Hoodie", new BigDecimal("79.00"), "Apparel", 7, null);
+        when(search.searchProducts("hoodie", null, "Gadgets", ShopTools.MAX_RESULTS)).thenReturn(List.of(hoodie));
+
+        Object out = tools.searchProducts("hoodie", null, "Gadgets");
+
+        assertThat(out).isInstanceOf(ShopTools.CategoryIgnored.class);
+        ShopTools.CategoryIgnored ignored = (ShopTools.CategoryIgnored) out;
+        assertThat(ignored.note()).contains("Gadgets").contains("Apparel");
+        assertThat(ignored.products()).containsExactly(hoodie);
+        assertThat(tools.searchProducts("hoodie", null, "apparel")).isInstanceOf(List.class);
     }
 
     @Test

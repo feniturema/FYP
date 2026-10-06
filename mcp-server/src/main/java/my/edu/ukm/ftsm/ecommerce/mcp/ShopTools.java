@@ -6,6 +6,7 @@ import my.edu.ukm.ftsm.ecommerce.model.SeckillEvent;
 import my.edu.ukm.ftsm.ecommerce.repository.ProductRepository;
 import my.edu.ukm.ftsm.ecommerce.repository.ReviewRepository;
 import my.edu.ukm.ftsm.ecommerce.repository.SeckillEventRepository;
+import my.edu.ukm.ftsm.ecommerce.search.CatalogCategory;
 import my.edu.ukm.ftsm.ecommerce.search.CatalogSearchService;
 import my.edu.ukm.ftsm.ecommerce.search.SearchDtos.FlashSaleView;
 import my.edu.ukm.ftsm.ecommerce.search.SearchDtos.ItemView;
@@ -53,14 +54,23 @@ public class ShopTools {
     @Tool(name = "search_products", description = "Search the official FTSM store (new B2C products) by keyword. "
             + "Use it whenever the user looks for a product, asks what is sold, or gives a budget or category. "
             + "Returns at most 10 products with price (RM) and stock.")
-    public List<ProductView> searchProducts(
+    public Object searchProducts(
             @ToolParam(description = "Search keyword, 1-200 characters, e.g. 'hoodie'") String keyword,
             @ToolParam(required = false, description = "Maximum price in RM, >= 0") BigDecimal maxPrice,
             @ToolParam(required = false, description = "Exact category name, e.g. 'Apparel'") String category) {
         requireKeyword(keyword);
         requireNonNegative(maxPrice);
-        return search.searchProducts(keyword, maxPrice, category, MAX_RESULTS);
+        List<ProductView> found = search.searchProducts(keyword, maxPrice, category, MAX_RESULTS);
+        if (category != null && !category.isBlank() && CatalogCategory.parse(category).isEmpty()) {
+            // P5a §6.5: an unknown category is not an error; search without it and say so.
+            return new CategoryIgnored("Unknown category '" + category.strip() + "' was ignored; categories are: "
+                    + CatalogCategory.allowedLabels() + ".", found);
+        }
+        return found;
     }
+
+    /** search_products result when the category was not one of {@link CatalogCategory}. */
+    public record CategoryIgnored(String note, List<ProductView> products) {}
 
     @Tool(name = "search_secondhand_items", description = "Search second-hand items listed by students (C2C) by keyword. "
             + "Use it when the user asks for used or second-hand goods. Only items still for sale are returned, at most 10.")

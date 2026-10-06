@@ -108,6 +108,12 @@ app:
   mail:
     enabled: ${MAIL_ENABLED:false}         # when false, OTP is logged instead of emailed
     from: ${MAIL_FROM:no-reply@ftsm.ukm.edu.my}
+  # P5a demo catalogue (demo profile only): see README "Demo catalogue".
+  demo:
+    target-db: ${APP_DEMO_TARGET_DB:}
+    allow-default-db: ${APP_DEMO_ALLOW_DEFAULT_DB:false}
+    on-conflict: ${APP_DEMO_ON_CONFLICT:fail}
+    seller-password: ${SEED_DEMO_PASSWORD:}
   seed:
     enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:admin@ukm.edu.my}

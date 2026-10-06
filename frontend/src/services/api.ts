@@ -1,7 +1,7 @@
 import api from './axios';
 import type {
   AuthResponse, Item, Product, SeckillEvent, SeckillBuyResponse,
-  SeckillResult, Order, Review, ReviewSummary,
+  SeckillResult, Order, Review, ReviewSummary, SearchParams, SearchResponse,
 } from '../types';
 import { streamAssistant } from './sse';
 
@@ -15,6 +15,12 @@ export const authApi = {
     api.post<{ message: string }>('/auth/resend-otp', data).then((r) => r.data),
   login: (data: { email: string; password: string }) =>
     api.post<AuthResponse>('/auth/login', data).then((r) => r.data),
+};
+
+// ---- Catalogue search (public, P5a) ----
+export const searchApi = {
+  search: (params: SearchParams, signal?: AbortSignal) =>
+    api.get<SearchResponse>('/search', { params, signal }).then((r) => r.data),
 };
 
 // ---- Marketplace (C2C items) ----

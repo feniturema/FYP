@@ -1,0 +1,8 @@
+{
+  "currency": "USD",
+  "date": "YYYY-MM-DD",
+  "source": "<pricing page url>",
+  "embedding_per_1m_tokens": 0.0,
+  "chat_input_per_1m_tokens": 0.0,
+  "chat_output_per_1m_tokens": 0.0
+}

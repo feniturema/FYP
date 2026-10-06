@@ -44,6 +44,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/items/**", "/api/products/**",
                         "/api/seckill/events/**", "/api/reviews/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()  // served images
+                .requestMatchers(HttpMethod.GET, "/api/search").permitAll()  // P5a catalogue search
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html",
                         "/actuator/health").permitAll()
                 // admin
