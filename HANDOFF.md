@@ -332,8 +332,9 @@ plane. `POST /api/assistant/stream` accepts a JSON message and optional conversa
   are implemented and merged (P3 via PR #5; the event-cache pinning fix, CHANGELOG [Unreleased], via PR #6,
   both 2026-10-05) and P4a (v0.8.0, PR #7, 2026-10-05). P6a (v0.9.0: Testcontainers ITs + CI) was
   merged via PR #8, P4b (v0.10.0) via PR #9. P5a (v0.11.0: FULLTEXT search, `/api/search`, demo catalogue,
-  eval harness) is implemented on `p5a-search`, PR open, not merged. After it merges a person labels
-  `eval/queries.jsonl` (commit `eval: label queries`); P5b is blocked until then. Acceptance host ports are in
+  eval harness) was merged via PR #10 (2026-10-06); the labelling guide and checker (`eval/LABELLING.md`,
+  `eval/check_labels.py`) via PR #12. A person now labels `eval/queries.jsonl` (commit `eval: label queries`,
+  `python3 eval/check_labels.py --base origin/main` must pass); P5b is blocked until then. Acceptance host ports are in
   `docs/CHANGE_SPEC.md` §0.11, all within 1-65535 since the 2026-10-06 docs fix: P5a 63306/63379/63092/63080/63081
   (mcp-server 63082), P5b 63406/63479/63192/63180 (mcp-server 63182, Ollama 61434), P6b 64306/64379/64092/64080
   (LGTM 64000/64318).
@@ -345,7 +346,9 @@ plane. `POST /api/assistant/stream` accepts a JSON message and optional conversa
   Production cutover to v0.7.0 with existing data is a manual step (README "Upgrading … to v0.7.0",
   `scripts/p2/precheck_cutover.py`, `docs/phases/P2.md` §10.1).
   D1 decided 2026-10-04: `D1=boot-3.5.16` (stay on Boot 3.5.16; no further OSS patches on the 3.5 line).
-  Human decisions pending: D2 (embedding provider, gates P5b), D3 (implement P7).
+  D2 decided 2026-10-06 by the maintainer: `EMBEDDING_PROVIDER=openai` (P5b needs `OPENAI_API_KEY` at run time;
+  per `docs/phases/P5b.md` §6.1 an empty key falls back to none with a WARN).
+  Human decisions pending: D3 (implement P7).
 
 ---
 
